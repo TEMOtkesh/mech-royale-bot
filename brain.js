@@ -44,7 +44,7 @@ export const DEFAULTS = {
   roof_min_h: 14, roof_max_h: 48, roof_fire: true, roof_center_w: 0.25,
   idle: false,
   stick: 70,
-  lead_k: 1.0, vel_ema: 1.0, gun_tol: 1.6,
+  lead_k: 1.0, vel_ema: 1.0, gun_tol: 1.6, tac_reload: false,
   laser_direct: true,
   aim_noise: 0,
   dodge: true,
@@ -957,6 +957,10 @@ export function makeBot(hello, mapFiles, override = {}) {
     if (mode === "hide" && P.precharge) {
       // pre-charge the laser behind cover, then peek to release
       me.weapons.forEach((w, i) => { if (w && w.kind === "laser" && w.cooldown <= 0 && (w.charge || 0) < w.stats.charge * 0.95) act.fire[i] = true })
+    }
+    if (P.tac_reload && !fireTarget && !(act.fire && (act.fire[0] || act.fire[1]))) {
+      const g = me.weapons[0]
+      if (g && g.kind === "gun" && !(g.reload > 0) && (g.ammo ?? 99) < g.stats.mag * 0.6 && t - S.lastDamagedT > 1.5) act.reload = true
     }
     if (P.ghost && t - S.lastDamagedT >= 3) act.fire = [false, false]
     if (!P.shoot_crates && mode === "crate") act.fire = [false, false]
