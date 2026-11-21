@@ -1,1 +1,1 @@
-OVERRIDE = {"strategy": "prey"}
+OVERRIDE = {"strategy": "predator"}
