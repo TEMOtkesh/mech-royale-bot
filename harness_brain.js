@@ -41,6 +41,7 @@ roof_min_h: 14, roof_max_h: 48, roof_fire: true, roof_center_w: 0.25,
 idle: false,
 stick: 70,
 lead_k: 1.0, vel_ema: 1.0, gun_tol: 1.6, tac_reload: false,
+gun_select: false, gun_select_min: 50, gun_select_k: 0.5,
 laser_direct: true,
 aim_noise: 0,
 dodge: true,
@@ -780,7 +781,15 @@ weapons.forEach((wp, i) => {
 if (!wp) return
 const st = wp.stats
 if (wp.kind === "gun") {
-if (clear && d < st.range && err < tol * P.gun_tol) fire[i] = true
+let good = true
+if (P.gun_select && tkind === "mech" && d > P.gun_select_min) {
+const tvv = tgt.vel || [0, 0, 0], ux = (tgt.pos[0] - pos[0]) / Math.max(d, 1), uy = (tgt.pos[1] - pos[1]) / Math.max(d, 1)
+const lat = Math.abs(-uy * tvv[0] + ux * tvv[1])
+const flight = d / st.speed
+const r = 2.5 * (1 + 0.05 * (tgt.cubes || 0))
+good = lat * flight * P.gun_select_k < r + 0.5
+}
+if (clear && d < st.range && err < tol * P.gun_tol && good) fire[i] = true
 if ((wp.ammo ?? 1) === 0 && (wp.reload ?? 0) === 0) act.reload = true
 } else if (wp.kind === "laser") {
 const ch = wp.charge || 0
