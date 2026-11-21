@@ -55,6 +55,7 @@ export const DEFAULTS = {
   bdodge: false, bdodge_reach: 3.6, bdodge_t: 0.6, bdodge_hold: 0.35,
   hostile_only: false, hostile_ang: 0.2, hostile_near: 60, hostile_mem: 4,
   short_retreat: 0, lethal: false, lethal_k: 0.8,
+  ammo_track: false,
   fightmove: false, fr_gun: 88, fr_laser: 115, fr_light: 28, fr_range_w: 1.0, fr_los_w: 40, fr_expose_w: 28, fr_strafe_w: 8,
   overwhelm: 3, overwhelm_hp: 0.9,
   fortress: false, fort_open: 5, fort_arms: 1, fort_after: 60,
@@ -460,6 +461,40 @@ export function makeBot(hello, mapFiles, override = {}) {
     return 90
   }
 
+  function weaponIntel(obs, me, enemies) {
+    // per-enemy weapon state from what we hear and see: count gun shots (mag 12, then a 2.4 s reload), reload sounds, laser beams (1.65 s cooldown)
+    const t = obs.t, W = (S.ew = S.ew || new Map())
+    const get = (id) => { let e = W.get(id); if (!e) { e = { shots: 0, reloadUntil: -1, laserUntil: -1, lastShot: -1 }; W.set(id, e) } return e }
+    const gcfg = cfg.weapons.gun, lcfg = cfg.weapons.laser
+    const rng = { near: [0, 70], mid: [50, 175], far: [150, 400] }
+    const mechs = enemies.filter((m) => m.kind === "mech")
+    for (const snd of obs.sounds || []) {
+      if (snd.kind !== "gun" && snd.kind !== "reload") continue
+      const [lo, hi] = rng[snd.dist] || [0, 400]
+      let hit = null, n = 0
+      for (const m of mechs) {
+        const d = dist2(m.pos, me.pos)
+        if (d < lo || d > hi) continue
+        if (Math.abs(angDiff(snd.bearing, Math.atan2(m.pos[1] - me.pos[1], m.pos[0] - me.pos[0]))) < 0.21) { hit = m; n++ }
+      }
+      if (n !== 1) continue
+      const e = get(hit.id), at = t - (snd.age || 0)
+      if (snd.kind === "reload") { e.reloadUntil = at + gcfg.reload; e.shots = 0; continue }
+      if (at < e.reloadUntil - 0.2) continue
+      e.shots++; e.lastShot = at
+      if (e.shots >= gcfg.mag) { e.reloadUntil = at + gcfg.reload; e.shots = 0 }
+    }
+    for (const b of obs.beams || []) if (b.kind === "laser" && b.by != null) get(b.by).laserUntil = t - (b.age || 0) + lcfg.cooldown
+  }
+
+  function vulnerable(m, t) {
+    // the target's gun is empty and its laser (if any) is cooling down or absent
+    const e = S.ew && S.ew.get(m.id)
+    if (!e) return false
+    const hasL = (m.weapons || []).includes("laser")
+    return e.reloadUntil > t + 0.3 && (!hasL || e.laserUntil > t + 0.3)
+  }
+
   function prefRange(me, target) {
     const kinds = me.weapons.filter(Boolean).map((w) => w.kind), theirs = target.weapons || []
     let r = P.fr_gun
@@ -475,14 +510,15 @@ export function makeBot(hello, mapFiles, override = {}) {
   function fightPoint(obs, me, target, enemies, hpFrac) {
     // local position search each tick: hold a preferred range, keep the shot, stay out of other mechs' sight, keep moving sideways
     const t = obs.t, pos = me.pos, z = obs.zone
-    const pref = prefRange(me, target)
+    const pref = prefRange(me, target) * (P.ammo_track && vulnerable(target, t) ? 0.7 : 1)
     const tc = [target.pos[0], target.pos[1], target.pos[2] + 4.5]
     const bx = target.pos[0] - pos[0], by = target.pos[1] - pos[1], bd = hyp(bx, by) || 1
     if (t >= (S.fsUntil ?? -1)) { if (!S.fsDir || rnd() < 0.6) S.fsDir = -(S.fsDir || (rnd() < 0.5 ? 1 : -1)); S.fsUntil = t + uni(0.3, 1.0) }
     const sx = -by / bd * S.fsDir, sy = bx / bd * S.fsDir
     const gun = me.weapons[0]
     const reloading = gun && gun.kind === "gun" && ((gun.reload ?? 0) > 0 || gun.ammo === 0)
-    const wantLos = !(reloading && !weaponReady(me) && hpFrac < 0.5)
+    const vuln = P.ammo_track && vulnerable(target, t)
+    const wantLos = vuln || !(reloading && !weaponReady(me) && hpFrac < 0.5)
     const others = [...S.tracked.entries()].filter(([id, v]) => id !== target.id && v.src === "see" && t - v.t <= 3 && dist2(v.pos, pos) < 200).map(([, v]) => v)
     let best = null, bs = -1e18, blockedSide = false
     for (let k = -1; k < 32; k++) {
@@ -701,7 +737,7 @@ export function makeBot(hello, mapFiles, override = {}) {
     if (!me.in_zone || zoneUrgent(obs, pos)) return [zg || obs.zone.next_center, "zone_run"]
     const winning = P.keep_fight && target && dist2(target.pos, pos) < 120 && ((target.hp ?? 1400) < 250 || (target.hp ?? 1400) < 0.5 * me.hp)
     if (P.short_retreat) {
-      if (losing(me, enemies, target, hpFrac)) S.loseAt = t
+      if (losing(me, enemies, target, hpFrac) && !(P.ammo_track && target && vulnerable(target, t))) S.loseAt = t
       if (S.loseAt != null && t - S.loseAt < P.short_retreat) return [coverPoint(pos, target ? target.pos : null, S.lastDamageBearing), "retreat"]
     } else if (hpFrac < P.retreat_hp && (target || underFire) && !winning) return [coverPoint(pos, target ? target.pos : null, S.lastDamageBearing), "retreat"]
     // outnumbered: break line of sight from the crowd instead of trading shots
@@ -811,7 +847,7 @@ export function makeBot(hello, mapFiles, override = {}) {
     const ready = weaponReady(me)
     const lw = me.weapons.find((w) => w && w.kind === "laser")
     const laserCharged = lw && (lw.charge || 0) >= lw.stats.charge * 0.9
-    const wantPeek = d < 30 || laserCharged || (ready && (hpFrac > P.peek_hide_hp || thp < hpFrac * 0.8))
+    const wantPeek = d < 30 || laserCharged || (ready && (hpFrac > P.peek_hide_hp || thp < hpFrac * 0.8)) || (P.ammo_track && ready && vulnerable(target, t))
     if (P.kite && world && d < P.kite_range) {
       // kite a closing pursuer: back off diagonally while the torso keeps firing at it
       const tv = target.vel || [0, 0, 0], ux = (pos[0] - target.pos[0]) / Math.max(d, 1), uy = (pos[1] - target.pos[1]) / Math.max(d, 1)
@@ -1019,6 +1055,7 @@ export function makeBot(hello, mapFiles, override = {}) {
     takeLoot(obs, act)
     const target = chooseTarget(me, enemies)
     const underFire = t - S.lastDamagedT < 2
+    if (P.ammo_track) weaponIntel(obs, me, enemies)
     let [goal, mode] = movementGoal(obs, me, enemies, target, hpFrac, underFire)
     let move = navigate(pos, goal, t)
     let boost = false
