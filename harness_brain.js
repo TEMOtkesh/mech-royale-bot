@@ -40,6 +40,7 @@ roof: false,           // camp on a roof inside the zone
 roof_min_h: 14, roof_max_h: 48, roof_fire: true, roof_center_w: 0.25,
 idle: false,
 stick: 70,
+overwhelm: 3, overwhelm_hp: 0.9,
 fortress: false, fort_open: 5, fort_arms: 1, fort_after: 60,
 econ: false, econ_radius: 180, econ_hp: 0.5, econ_cubes: 10,
 finish: false, finish_hp: 0.4,
@@ -566,6 +567,14 @@ S.roofPlan = null
 const zg = zoneGoal(obs, pos)
 if (!me.in_zone || zoneUrgent(obs, pos)) return [zg || obs.zone.next_center, "zone_run"]
 if (hpFrac < P.retreat_hp && (target || underFire)) return [coverPoint(pos, target ? target.pos : null, S.lastDamageBearing), "retreat"]
+const attackers = [...S.threats.entries()].filter(([id, v]) => t - v[0] < 4).length
+const close = enemies.filter((m) => dist2(m.pos, pos) < 150).length
+if (Math.max(attackers, close) >= P.overwhelm && hpFrac < P.overwhelm_hp) {
+let cx = 0, cy = 0, n = 0
+for (const m of enemies) { cx += m.pos[0]; cy += m.pos[1]; n++ }
+const tp = n ? [cx / n, cy / n, pos[2]] : null
+return [coverPoint(pos, tp, S.lastDamageBearing), "escape"]
+}
 for (const dr of obs.drops || []) {
 const dd = dist2(dr.pos, pos)
 if (dd < 140 && dr.lands_in < dd / 11 + 2) {
@@ -814,7 +823,7 @@ let sx = px * S.strafeDir, sy = py * S.strafeDir
 if (world && world.blockedAt(pos[0] + sx * 5, pos[1] + sy * 5)) { S.strafeDir *= -1; sx = -sx; sy = -sy }
 move = mode === "hold" && !P.drift ? [sx, sy] : (mode === "hold" ? [sx, sy] : norm2(move[0] * 0.6 + sx * 0.8, move[1] * 0.6 + sy * 0.8))
 }
-if (mode === "retreat" || mode === "zone_run") boost = me.energy > 15
+if (mode === "retreat" || mode === "zone_run" || mode === "escape") boost = me.energy > 15
 if (mode === "finish") boost = me.energy > 30
 if (!me.in_zone) boost = me.energy > 10
 let jump = false, jet = false
