@@ -55,9 +55,9 @@ export const DEFAULTS = {
   bdodge: false, bdodge_reach: 3.6, bdodge_t: 0.6, bdodge_hold: 0.35,
   hostile_only: false, hostile_ang: 0.2, hostile_near: 60, hostile_mem: 4,
   short_retreat: 0, lethal: false, lethal_k: 0.8,
-  opp: false, opp_late: 4, opp_range: 130, fight_boost: false,
+  opp: false, opp_late: 4, opp_range: 130, fight_boost: false, aim_risk: 0, near_risk: 0,
   ammo_track: false, pick_mem: false, pick_mem_empty: 160, pick_mem_swap: 90,
-  fightmove: false, fr_gun: 88, fr_laser: 115, fr_light: 28, fr_range_w: 1.0, fr_los_w: 40, fr_expose_w: 28, fr_strafe_w: 8,
+  fightmove: false, fr_gun: 88, fr_laser: 115, fr_light: 28, fr_range_w: 1.0, fr_los_w: 40, fr_expose_w: 28, fr_strafe_w: 8, fr_aim_w: 0,
   overwhelm: 3, overwhelm_hp: 0.9,
   fortress: false, fort_open: 5, fort_arms: 1, fort_after: 60,
   econ: false, econ_radius: 180, econ_hp: 0.5, econ_cubes: 10,
@@ -451,7 +451,7 @@ export function makeBot(hello, mapFiles, override = {}) {
       const prev = S.tracked.get(m.id), v = m.vel || [0, 0, 0]
       let ev = v
       if (prev && prev.src === "see" && prev.ev && t - prev.t < 0.5) { const k = P.vel_ema; ev = [prev.ev[0] * (1 - k) + v[0] * k, prev.ev[1] * (1 - k) + v[1] * k, v[2]] }
-      S.tracked.set(m.id, { pos: m.pos, vel: v, ev, hp: m.hp ?? 1400, max_hp: m.max_hp ?? 1400, t, src: "see" })
+      S.tracked.set(m.id, { pos: m.pos, vel: v, ev, hp: m.hp ?? 1400, max_hp: m.max_hp ?? 1400, t, src: "see", aim: m.aim })
     }
     const me = obs.self.pos
     const dmap = { near: 40, mid: 110, far: 230 }
@@ -551,7 +551,13 @@ export function makeBot(hello, mapFiles, override = {}) {
       let sc = -P.fr_range_w * Math.abs(d - pref) - 0.3 * r
       const los = world ? world.los([cx, cy, gz + 7], tc) : true
       sc += (los === wantLos) ? P.fr_los_w : 0
-      for (const e of others) if (!world || world.los([e.pos[0], e.pos[1], e.pos[2] + 8], [cx, cy, gz + 5])) sc -= P.fr_expose_w
+      for (const e of others) {
+        if (!world || world.los([e.pos[0], e.pos[1], e.pos[2] + 8], [cx, cy, gz + 5])) {
+          sc -= P.fr_expose_w
+          // danger by gun direction: standing on another mech's aim line is worse than merely being visible to it
+          if (P.fr_aim_w && e.aim && Math.abs(angDiff(e.aim[0], Math.atan2(cy - e.pos[1], cx - e.pos[0]))) < 0.2) sc -= P.fr_aim_w
+        }
+      }
       const dz = hyp(cx - z.next_center[0], cy - z.next_center[1])
       if (dz > z.next_radius * 0.9) sc -= (dz - z.next_radius * 0.9) * 0.4
       if (hyp(cx - z.center[0], cy - z.center[1]) > z.radius - 4) sc -= 60
@@ -590,6 +596,13 @@ export function makeBot(hello, mapFiles, override = {}) {
         const perp = Math.abs(Math.cos(Math.atan2(pos[1] - y, pos[0] - x) - Math.atan2(ey - y, ex - x)))
         risk += ratio * (1 + perp) / d2 * 2e4
         if (e.src === "see" && world && d2 < 240 * 240 && world.los(eye, [ex, ey, ez + 8])) risk += P.expose_w * ratio / (1 + Math.sqrt(d2) / 120)
+        if (P.aim_risk && e.aim && d2 < 260 * 260 && Math.abs(angDiff(e.aim[0], Math.atan2(y - ey, x - ex))) < 0.26) risk += P.aim_risk * ratio
+        if (P.near_risk) {
+          // melee rule: a mech shoots whoever is closest to it, so don't be anyone's nearest target
+          let closer = 0
+          for (const o of kn) if (o !== e && (o.pos[0] - ex) ** 2 + (o.pos[1] - ey) ** 2 < d2) { closer++; if (closer > 0) break }
+          if (!closer) risk += P.near_risk * ratio / (1 + Math.sqrt(d2) / 150)
+        }
       }
       const dz = hyp(x - nc[0], y - nc[1])
       if (dz > nr * 0.85) risk += 2 + (dz - nr * 0.85) * 0.05
