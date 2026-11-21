@@ -485,7 +485,7 @@ return [[dr.pos[0], dr.pos[1]], "drop"]
 }
 }
 const predator = P.strategy === "predator"
-if (target && P.peek && (predator || dist3(target.pos, pos) < P.engage_range || underFire)) {
+if (target && P.peek && (!P.ghost || t - S.lastDamagedT < 6) && (predator || dist3(target.pos, pos) < P.engage_range || underFire)) {
 return [duelPoint(obs, me, target, hpFrac), S.duelState]
 }
 if (target) {
