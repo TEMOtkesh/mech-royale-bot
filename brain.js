@@ -22,6 +22,9 @@ export const DEFAULTS = {
     "lightning_efficiency", "lightning_range", "lightning_chain", "mortar_splash", "mortar_velocity", "laser_pierce"],
   weapon_pref: { laser: 3, lightning: 2, mortar: 0 },
   laser_seek: 160,
+  weapon_seek: 70,
+  cube_cap: 99,
+  lightning_min_energy: 25,
   drop_gun: false,        // allow laser + lightning loadout (drop the arm gun)
   squad_after: 45,        // walk this far for a laser when safe
   squad_override: null,   // merged into params once practice-squad mode is confirmed
@@ -41,6 +44,7 @@ export const DEFAULTS = {
   roof_min_h: 14, roof_max_h: 48, roof_fire: true, roof_center_w: 0.25,
   idle: false,
   stick: 70,
+  fortress: false, fort_open: 5, fort_arms: 1, fort_after: 60,
   econ: false, econ_radius: 180, econ_hp: 0.5, econ_cubes: 10,
   finish: false, finish_hp: 0.4,
   recover_hp: 0.7,
@@ -141,6 +145,18 @@ export class World {
   blockedAt(x, y) {
     const [i, j] = this.cellOf(x, y)
     return !this.inb(i, j) || this.block[j * this.nx + i] === 1
+  }
+  enclosure(x, y, rays = 24, maxd = 80) {
+    // distance to the first building along each ray; returns {mean, open, dir}
+    let sum = 0, open = 0, ox = 0, oy = 0
+    for (let r = 0; r < rays; r++) {
+      const a = (r / rays) * Math.PI * 2, c = Math.cos(a), s = Math.sin(a)
+      let d = 4
+      for (; d < maxd; d += 4) if (this.blockedAt(x + c * d, y + s * d)) break
+      sum += d
+      if (d >= maxd) { open++; ox += c; oy += s }
+    }
+    return { mean: sum / rays / maxd, open, dir: Math.atan2(oy, ox) }
   }
   roofAt(x, y) { // top of building under (x,y) or null
     const [i, j] = this.cellOf(x, y)
@@ -542,6 +558,37 @@ export function makeBot(hello, mapFiles, override = {}) {
     return { goal: [R.x, R.y], mode: "climb", direct: true, jet: true }
   }
 
+  function planFort(obs, me) {
+    const z = obs.zone, nc = z.next_center, nr = z.next_radius, pos = me.pos
+    const R = Math.max(10, nr * 0.75)
+    let best = null, bs = 1e18
+    for (let k = 0; k < 220; k++) {
+      const a = uni(0, Math.PI * 2), rr = Math.sqrt(rnd()) * R
+      const x = nc[0] + Math.cos(a) * rr, y = nc[1] + Math.sin(a) * rr
+      if (world.blockedAt(x, y)) continue
+      // must hug a wall
+      const [i, j] = world.cellOf(x, y)
+      let wall = 0
+      for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) if (world.inb(i + di, j + dj) && world.block[(j + dj) * world.nx + i + di]) wall++
+      if (!wall) continue
+      if (Math.abs(world.height(x, y) - pos[2]) > 25) continue
+      const e = world.enclosure(x, y)
+      if (e.open === 0) continue  // fully boxed in: we could not see them coming
+      const s = e.mean * 10 + Math.abs(e.open - P.fort_open) * 0.6 + dist2([x, y], pos) * 0.01 + hyp(x - nc[0], y - nc[1]) / Math.max(nr, 1) * 2
+      if (s < bs) { bs = s; best = { x, y, dir: e.dir, open: e.open, mean: e.mean, nc: [nc[0], nc[1]], nr } }
+    }
+    return best
+  }
+  function fortGoal(obs, me) {
+    const z = obs.zone, t = obs.t
+    const F = S.fort
+    const stale = !F || hyp(F.x - z.next_center[0], F.y - z.next_center[1]) > z.next_radius * 0.8 || Math.abs(F.nr - z.next_radius) > 1
+    if (stale && t > (S.fortPlanT || -99) + 3) { S.fort = planFort(obs, me) || S.fort; S.fortPlanT = t }
+    if (!S.fort) return null
+    S.fortDir = S.fort.dir
+    return [[S.fort.x, S.fort.y], "fort"]
+  }
+
   function movementGoal(obs, me, enemies, target, hpFrac, underFire) {
     const pos = me.pos, t = obs.t
     if (P.roof && world) {
@@ -600,17 +647,18 @@ export function makeBot(hello, mapFiles, override = {}) {
     const safe = !underFire && enemies.length === 0
     if (safe) {
       let best = null, bd = P.loot_radius
-      for (const c of obs.cubes || []) { const d = dist3(c.pos, pos); if (d < bd && Math.abs(c.pos[2] - pos[2]) < 4) { best = [c.pos[0], c.pos[1]]; bd = d } }
+      if (me.cubes < P.cube_cap) for (const c of obs.cubes || []) { const d = dist3(c.pos, pos); if (d < bd && Math.abs(c.pos[2] - pos[2]) < 4) { best = [c.pos[0], c.pos[1]]; bd = d } }
       const held = me.weapons.map((w) => (w ? w.kind : null))
       const wv = worstSlot(me)[1]
       for (const p of obs.pickups || []) {
         if (held.includes(p.kind) || p.kind === "gun") continue
         if (wval(p.kind) <= wv) continue
-        const d = dist3(p.pos, pos) * (p.kind === "laser" ? P.loot_radius / P.laser_seek : 1)
+        const d = dist3(p.pos, pos) * (p.kind === "laser" ? P.loot_radius / P.laser_seek : P.loot_radius / Math.max(P.loot_radius, P.weapon_seek))
         if ((P.weapon_pref[p.kind] || 0) > 0 && d < bd && Math.abs(p.pos[2] - pos[2]) < 4) { best = [p.pos[0], p.pos[1]]; bd = d }
       }
       if (best) return [best, "loot"]
-      if (P.econ && world && hpFrac > P.econ_hp && me.cubes < P.econ_cubes) { const eg = econGoal(obs, me); if (eg) return eg }
+      const armed = me.weapons.filter((w) => w && w.kind !== "gun").length >= P.fort_arms
+      if (P.econ && world && hpFrac > P.econ_hp && me.cubes < P.econ_cubes && !(P.fortress && armed && t > P.fort_after)) { const eg = econGoal(obs, me); if (eg) return eg }
       for (const c of obs.crates || []) if (dist3(c.pos, pos) < 40 && Math.abs(c.pos[2] - pos[2]) < 6) return [[pos[0], pos[1]], "crate"]
     }
     if (underFire) return [coverPoint(pos, null, S.lastDamageBearing), "evade"]
@@ -620,6 +668,7 @@ export function makeBot(hello, mapFiles, override = {}) {
       return [S.recoverAt, "recover"]
     }
     S.recoverAt = null
+    if (P.fortress && world && !P.ghost) { const fg = fortGoal(obs, me); if (fg) return fg }
     if (known(t, 6).length && P.drift) return [riskPoint(obs, me, null), "drift"]
     return [zg || [pos[0], pos[1]], "idle"]
   }
@@ -751,7 +800,7 @@ export function makeBot(hello, mapFiles, override = {}) {
           if (wp.cooldown <= 0 && d < st.range && clear) fire[i] = ch < st.charge * 0.95 ? true : !(err < tol)
           else if (ch > 0) fire[i] = !(err < tol * 2)
         } else if (wp.kind === "lightning") {
-          if (d < st.range * 0.95 && Math.abs(angDiff(ay, yaw)) < (st.cone_deg * Math.PI / 180) * 0.8 && clear) fire[i] = me.energy > 25
+          if (d < st.range * 0.95 && Math.abs(angDiff(ay, yaw)) < (st.cone_deg * Math.PI / 180) * 0.8 && clear) fire[i] = me.energy > P.lightning_min_energy
         } else if (wp.kind === "mortar") {
           if (wp.cooldown <= 0 && d > 25 && d < 220) {
             const mp = mortarPitch(dist2(tgt.pos, pos), tgt.pos[2] - pos[2] - (stats.height || 9) - 0.5, st.speed, st.gravity)
@@ -772,6 +821,7 @@ export function makeBot(hello, mapFiles, override = {}) {
       const t = obs.t
       const snd = (obs.sounds || []).filter((s) => ["gun", "laser", "laser_charge", "lightning", "step", "boost", "mortar", "jet"].includes(s.kind))
       if (t - S.lastDamagedT < 4 && S.lastDamageBearing != null) aim = [S.lastDamageBearing, 0]
+      else if (mode === "fort" && S.fortDir != null && dist2([S.fort.x, S.fort.y], pos) < 6 && !snd.some((x) => x.dist === "near")) aim = [S.fortDir + Math.sin(t * 0.7) * 0.5, 0]
       else if (snd.length) { const r = { near: 0, mid: 1, far: 2 }; snd.sort((a, b) => r[a.dist] - r[b.dist]); aim = [snd[0].bearing, 0] }
       else {
         const mv = act.move || [0, 0]
