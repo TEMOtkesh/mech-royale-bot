@@ -50,6 +50,7 @@ export const DEFAULTS = {
   laser_direct: true,
   aim_noise: 0,
   dodge: true,
+  jink: 0, jink_min: 0.25, jink_max: 0.6,
   overwhelm: 3, overwhelm_hp: 0.9,
   fortress: false, fort_open: 5, fort_arms: 1, fort_after: 60,
   econ: false, econ_radius: 180, econ_hp: 0.5, econ_cubes: 10,
@@ -943,6 +944,15 @@ export function makeBot(hello, mapFiles, override = {}) {
       let sx = px * S.strafeDir, sy = py * S.strafeDir
       if (world && world.blockedAt(pos[0] + sx * 5, pos[1] + sy * 5)) { S.strafeDir *= -1; sx = -sx; sy = -sy }
       move = mode === "hold" && !P.drift ? [sx, sy] : (mode === "hold" ? [sx, sy] : norm2(move[0] * 0.6 + sx * 0.8, move[1] * 0.6 + sy * 0.8))
+    }
+    if (P.jink && target && (mode === "peek" || mode === "finish" || mode === "grab")) {
+      // jink while exposed: lateral direction flips faster than a bullet's flight time
+      if (t > (S.jinkT ?? -1)) { S.jinkDir = rnd() < 0.5 ? -1 : 1; S.jinkT = t + uni(P.jink_min, P.jink_max) }
+      const [px, py] = norm2(-(target.pos[1] - pos[1]), target.pos[0] - pos[0])
+      let sx = px * S.jinkDir, sy = py * S.jinkDir
+      if (world && world.blockedAt(pos[0] + sx * 4, pos[1] + sy * 4)) { S.jinkDir *= -1; sx = -sx; sy = -sy }
+      const mlen = hyp(move[0], move[1])
+      move = mlen > 0.2 ? norm2(move[0] + sx * P.jink, move[1] + sy * P.jink) : [sx, sy]
     }
     if (mode === "retreat" || mode === "zone_run" || mode === "escape") boost = me.energy > 15
     S.dodging = !!dodge
