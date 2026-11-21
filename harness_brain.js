@@ -29,7 +29,8 @@ hunt_after: 0,
 peek: false,           // corner-peek dueling: shoot from a peek spot, hide to reload/regen
 peek_hide_hp: 0.55,
 roof: false,           // camp on a roof inside the zone
-roof_min_h: 14, roof_max_h: 48, roof_fire: true,
+roof_min_h: 14, roof_max_h: 48, roof_fire: true, roof_center_w: 0.25,
+idle: false,           // experiment: stand still, never fire
 ghost: false,          // never fire unless we were hit in the last 3 s
 shoot_crates: true,
 }
@@ -398,7 +399,7 @@ const h = r.top - r.ground
 if (h < P.roof_min_h || h > P.roof_max_h) continue
 const dz = hyp(r.x - nc[0], r.y - nc[1])
 if (dz > nr * 0.8 && nr > 30) continue
-const s = dz * 0.5 + hyp(r.x - pos[0], r.y - pos[1]) - Math.min(r.cells, 300) * 0.3
+const s = dz * P.roof_center_w + hyp(r.x - pos[0], r.y - pos[1]) - Math.min(r.cells, 300) * 0.1
 if (s < bs) { bs = s; best = r }
 }
 return best
@@ -651,6 +652,7 @@ act.fire = fire
 bot.act = function (obs) {
 const me = obs.self, t = obs.t, pos = me.pos
 const act = { tick: obs.tick }
+if (P.idle) { if (obs.offer) act.pick = 0; S.mode = "idle"; return act }
 updateMode(obs)
 for (const e of obs.events || []) if (e.type === "damaged" && e.bearing != null) {
 S.lastDamagedT = t; S.lastDamageBearing = e.bearing

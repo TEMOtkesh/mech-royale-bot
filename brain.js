@@ -33,7 +33,7 @@ export const DEFAULTS = {
   peek: false,           // corner-peek dueling: shoot from a peek spot, hide to reload/regen
   peek_hide_hp: 0.55,
   roof: false,           // camp on a roof inside the zone
-  roof_min_h: 14, roof_max_h: 48, roof_fire: true,
+  roof_min_h: 14, roof_max_h: 48, roof_fire: true, roof_center_w: 0.25,
   idle: false,           // experiment: stand still, never fire
   ghost: false,          // never fire unless we were hit in the last 3 s
   shoot_crates: true,
@@ -424,7 +424,7 @@ export function makeBot(hello, mapFiles, override = {}) {
       if (h < P.roof_min_h || h > P.roof_max_h) continue
       const dz = hyp(r.x - nc[0], r.y - nc[1])
       if (dz > nr * 0.8 && nr > 30) continue
-      const s = dz * 0.5 + hyp(r.x - pos[0], r.y - pos[1]) - Math.min(r.cells, 300) * 0.3
+      const s = dz * P.roof_center_w + hyp(r.x - pos[0], r.y - pos[1]) - Math.min(r.cells, 300) * 0.1
       if (s < bs) { bs = s; best = r }
     }
     return best
