@@ -34,6 +34,7 @@ export const DEFAULTS = {
   peek_hide_hp: 0.55,
   roof: false,           // camp on a roof inside the zone
   roof_min_h: 14, roof_max_h: 48, roof_fire: true,
+  idle: false,           // experiment: stand still, never fire
   ghost: false,          // never fire unless we were hit in the last 3 s
   shoot_crates: true,
 }
@@ -688,6 +689,7 @@ export function makeBot(hello, mapFiles, override = {}) {
   bot.act = function (obs) {
     const me = obs.self, t = obs.t, pos = me.pos
     const act = { tick: obs.tick }
+    if (P.idle) { if (obs.offer) act.pick = 0; S.mode = "idle"; return act }
     updateMode(obs)
     for (const e of obs.events || []) if (e.type === "damaged" && e.bearing != null) {
       S.lastDamagedT = t; S.lastDamageBearing = e.bearing
