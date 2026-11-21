@@ -41,6 +41,7 @@ export const DEFAULTS = {
   roof_min_h: 14, roof_max_h: 48, roof_fire: true, roof_center_w: 0.25,
   idle: false,
   stick: 70,
+  econ: false, econ_radius: 180, econ_hp: 0.5, econ_cubes: 10,
   finish: false, finish_hp: 0.4,
   recover_hp: 0.7,
   precharge: true,           // experiment: stand still, never fire
@@ -331,6 +332,40 @@ export function makeBot(hello, mapFiles, override = {}) {
     return need > 0 && (need / 10 > left - 15 || !obs.self.in_zone)
   }
 
+  function remember(obs) {
+    const t = obs.t
+    S.npcMem = S.npcMem || new Map(); S.crateMem = S.crateMem || new Map()
+    for (const m of obs.mechs) if (m.kind === "npc") S.npcMem.set(m.id, { pos: m.pos, t, hp: m.hp })
+    for (const c of obs.crates || []) S.crateMem.set(c.id, { pos: c.pos, t, hp: c.hp })
+    const p = obs.self.pos
+    // forget things we should be seeing but aren't (destroyed / moved)
+    for (const [k, v] of S.crateMem) if (t - v.t > 60 || (dist2(v.pos, p) < 30 && t - v.t > 1)) S.crateMem.delete(k)
+    for (const [k, v] of S.npcMem) if (t - v.t > 90 || (dist2(v.pos, p) < 35 && t - v.t > 2)) S.npcMem.delete(k)
+  }
+
+  function econGoal(obs, me) {
+    const pos = me.pos
+    let best = null, bs = 1e18
+    for (const [k, v] of S.crateMem) {
+      if (Math.abs(v.pos[2] - world.height(v.pos[0], v.pos[1])) > 3) continue  // skip rooftop crates
+      const d = dist2(v.pos, pos)
+      if (d > P.econ_radius) continue
+      const s = d / 1.0
+      if (s < bs) { bs = s; best = { kind: "crate", v, d } }
+    }
+    for (const [k, v] of S.npcMem) {
+      const d = dist2(v.pos, pos)
+      if (d > P.econ_radius) continue
+      const s = d / 2.0   // drones are worth 2 cubes
+      if (s < bs) { bs = s; best = { kind: "npc", v, d } }
+    }
+    if (!best) return null
+    const stand = best.kind === "npc" ? 55 : 30
+    if (best.d <= stand + 5) return [[pos[0], pos[1]], "farm"]
+    const [ux, uy] = norm2(pos[0] - best.v.pos[0], pos[1] - best.v.pos[1])
+    return [[best.v.pos[0] + ux * stand, best.v.pos[1] + uy * stand], "farm"]
+  }
+
   function track(obs, enemies) {
     const t = obs.t
     for (const m of enemies) S.tracked.set(m.id, { pos: m.pos, vel: m.vel || [0, 0, 0], hp: m.hp ?? 1400, max_hp: m.max_hp ?? 1400, t, src: "see" })
@@ -575,6 +610,7 @@ export function makeBot(hello, mapFiles, override = {}) {
         if ((P.weapon_pref[p.kind] || 0) > 0 && d < bd && Math.abs(p.pos[2] - pos[2]) < 4) { best = [p.pos[0], p.pos[1]]; bd = d }
       }
       if (best) return [best, "loot"]
+      if (P.econ && world && hpFrac > P.econ_hp && me.cubes < P.econ_cubes) { const eg = econGoal(obs, me); if (eg) return eg }
       for (const c of obs.crates || []) if (dist3(c.pos, pos) < 40 && Math.abs(c.pos[2] - pos[2]) < 6) return [[pos[0], pos[1]], "crate"]
     }
     if (underFire) return [coverPoint(pos, null, S.lastDamageBearing), "evade"]
@@ -687,10 +723,10 @@ export function makeBot(hello, mapFiles, override = {}) {
     let tgt = target, tkind = "mech"
     if (!tgt && npcs.length && P.farm_npcs && mode !== "retreat" && mode !== "zone_run") {
       const nn = [...npcs].sort((a, b) => dist3(a.pos, pos) - dist3(b.pos, pos))
-      if (dist3(nn[0].pos, pos) < 70) { tgt = nn[0]; tkind = "npc" }
+      if (dist3(nn[0].pos, pos) < (mode === "farm" ? 110 : 70)) { tgt = nn[0]; tkind = "npc" }
     }
     let crate = null
-    if (!tgt && (mode === "crate" || mode === "idle" || mode === "loot")) {
+    if (!tgt && (mode === "crate" || mode === "idle" || mode === "loot" || mode === "farm")) {
       const cs = [...(obs.crates || [])].sort((a, b) => dist3(a.pos, pos) - dist3(b.pos, pos))
       if (cs.length && dist3(cs[0].pos, pos) < 60) crate = cs[0]
     }
@@ -760,6 +796,7 @@ export function makeBot(hello, mapFiles, override = {}) {
     const npcs = obs.mechs.filter((m) => m.kind === "npc")
     const hpFrac = me.hp / Math.max(1, me.max_hp)
     track(obs, enemies)
+    remember(obs)
     takeLoot(obs, act)
     const target = chooseTarget(me, enemies)
     const underFire = t - S.lastDamagedT < 2
