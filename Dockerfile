@@ -1,5 +1,4 @@
-FROM python:3.13-slim
+FROM oven/bun:1.4.4-slim
 WORKDIR /bot
 COPY . .
-RUN python3 -m compileall -q /bot
-ENTRYPOINT ["python3", "-u", "/bot/bot.py"]
+ENTRYPOINT ["bun", "/bot/main.ts"]
