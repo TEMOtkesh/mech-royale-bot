@@ -278,6 +278,8 @@ class Bot:
             if predator and hp_frac >= P["retreat_hp"]:
                 return self._riskpoint(obs, me, target), "fight"
             if d < P["engage_range"] or under_fire:
+                if not P.get("drift", True):
+                    return (pos[0], pos[1]), "hold"
                 return self._riskpoint(obs, me, None), "hold"
         elif predator and hp_frac >= P["hunt_hp"] and not self.ffa_early(obs):
             prey = self._hunt_target(me)
@@ -310,7 +312,7 @@ class Bot:
         if under_fire:
             g = self._cover_point(pos, None, self.last_damage_bearing)
             return g, "evade"
-        if self._known_enemies(t, me, 6.0):
+        if self._known_enemies(t, me, 6.0) and P.get("drift", True):
             return self._riskpoint(obs, me, None), "drift"
         return (zgoal or (pos[0], pos[1])), "idle"
 
