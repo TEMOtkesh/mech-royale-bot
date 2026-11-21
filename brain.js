@@ -34,7 +34,8 @@ export const DEFAULTS = {
   peek_hide_hp: 0.55,
   roof: false,           // camp on a roof inside the zone
   roof_min_h: 14, roof_max_h: 48, roof_fire: true, roof_center_w: 0.25,
-  idle: false,           // experiment: stand still, never fire
+  idle: false,
+  stick: 70,           // experiment: stand still, never fire
   ghost: false,          // never fire unless we were hit in the last 3 s
   shoot_crates: true,
 }
@@ -273,15 +274,20 @@ export function makeBot(hello, mapFiles, override = {}) {
   }
 
   function chooseTarget(me, enemies) {
-    let best = null, bs = 1e18
+    let best = null, bs = 1e18, cur = null, cs = 1e18
     for (const m of enemies) {
       const d = dist3(m.pos, me.pos)
       if (d > 260) continue
-      let s = d + (m.hp ?? 1400) * 0.06
+      const hpf = (m.hp ?? 1400) / Math.max(1, m.max_hp ?? 1400)
+      let s = d + hpf * 90
       if (S.threats.has(m.id)) s -= 60
       if (world && !world.los([me.pos[0], me.pos[1], me.pos[2] + 7], [m.pos[0], m.pos[1], m.pos[2] + 4.5])) s += 120
       if (s < bs) { bs = s; best = m }
+      if (m.id === S.targetId) { cur = m; cs = s }
     }
+    // stickiness: don't thrash between targets (finish what we started)
+    if (cur && cs < bs + P.stick) best = cur
+    S.targetId = best ? best.id : null
     return best
   }
 
