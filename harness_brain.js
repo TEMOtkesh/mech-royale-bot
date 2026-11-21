@@ -40,6 +40,7 @@ roof: false,           // camp on a roof inside the zone
 roof_min_h: 14, roof_max_h: 48, roof_fire: true, roof_center_w: 0.25,
 idle: false,
 stick: 70,
+laser_direct: true,
 aim_noise: 0,
 dodge: true,
 overwhelm: 3, overwhelm_hp: 0.9,
@@ -758,6 +759,14 @@ aim = [yaw, pitch]
 const clear = world ? world.los(eye, [tgt.pos[0], tgt.pos[1], tgt.pos[2] + (tkind === "mech" ? 4.5 : 1.7)]) : true
 const err = Math.abs(angDiff(ay, yaw)) + Math.abs(ap - pitch) * 0.5
 const tol = Math.max(0.012, Math.atan2(2, Math.max(d, 1)))
+const tv = tgt.vel || [0, 0, 0], hz = tkind === "mech" ? 4.5 : 1.7
+const lpnt = [tgt.pos[0] + tv[0] * 0.12, tgt.pos[1] + tv[1] * 0.12, tgt.pos[2] + hz]
+const lyaw = Math.atan2(lpnt[1] - pos[1], lpnt[0] - pos[0])
+const lpitch = Math.atan2(lpnt[2] - pos[2] - muzzle, hyp(lpnt[0] - pos[0], lpnt[1] - pos[1]))
+const lerr = Math.abs(angDiff(ay, lyaw)) + Math.abs(ap - lpitch) * 0.5
+const ltol = Math.max(0.008, Math.atan2(1.8, Math.max(d, 1)))
+const lw = weapons.find((w) => w && w.kind === "laser")
+if (P.laser_direct && lw && (lw.charge || 0) >= lw.stats.charge * 0.5) aim = [lyaw, lpitch]
 weapons.forEach((wp, i) => {
 if (!wp) return
 const st = wp.stats
@@ -766,8 +775,9 @@ if (clear && d < st.range && err < tol * 1.6) fire[i] = true
 if ((wp.ammo ?? 1) === 0 && (wp.reload ?? 0) === 0) act.reload = true
 } else if (wp.kind === "laser") {
 const ch = wp.charge || 0
-if (wp.cooldown <= 0 && d < st.range && clear) fire[i] = ch < st.charge * 0.95 ? true : !(err < tol)
-else if (ch > 0) fire[i] = !(err < tol * 2)
+const e2 = P.laser_direct ? lerr : err, t2 = P.laser_direct ? ltol : tol
+if (wp.cooldown <= 0 && d < st.range && clear) fire[i] = ch < st.charge * 0.95 ? true : !(e2 < t2)
+else if (ch > 0) fire[i] = !(e2 < t2 * 2)
 } else if (wp.kind === "lightning") {
 if (d < st.range * 0.95 && Math.abs(angDiff(ay, yaw)) < (st.cone_deg * Math.PI / 180) * 0.8 && clear) fire[i] = me.energy > P.lightning_min_energy
 } else if (wp.kind === "mortar") {
