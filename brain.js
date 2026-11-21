@@ -55,7 +55,7 @@ export const DEFAULTS = {
   bdodge: false, bdodge_reach: 3.6, bdodge_t: 0.6, bdodge_hold: 0.35,
   hostile_only: false, hostile_ang: 0.2, hostile_near: 60, hostile_mem: 4,
   short_retreat: 0, lethal: false, lethal_k: 0.8,
-  ammo_track: false,
+  ammo_track: false, pick_mem: false, pick_mem_empty: 160, pick_mem_swap: 90,
   fightmove: false, fr_gun: 88, fr_laser: 115, fr_light: 28, fr_range_w: 1.0, fr_los_w: 40, fr_expose_w: 28, fr_strafe_w: 8,
   overwhelm: 3, overwhelm_hp: 0.9,
   fortress: false, fort_open: 5, fort_arms: 1, fort_after: 60,
@@ -402,6 +402,10 @@ export function makeBot(hello, mapFiles, override = {}) {
     // forget things we should be seeing but aren't (destroyed / moved)
     for (const [k, v] of S.crateMem) if (t - v.t > 60 || (dist2(v.pos, p) < 30 && t - v.t > 1)) S.crateMem.delete(k)
     for (const [k, v] of S.npcMem) if (t - v.t > 90 || (dist2(v.pos, p) < 35 && t - v.t > 2)) S.npcMem.delete(k)
+    // weapon pickups stay on the ground until someone takes them: remember them after they leave view
+    S.pickMem = S.pickMem || new Map()
+    for (const k of obs.pickups || []) S.pickMem.set(k.id, { kind: k.kind, pos: k.pos, t })
+    for (const [k, v] of S.pickMem) if (t - v.t > 120 || (dist2(v.pos, p) < 25 && t - v.t > 0.5)) S.pickMem.delete(k)
   }
 
   function econGoal(obs, me) {
@@ -811,6 +815,18 @@ export function makeBot(hello, mapFiles, override = {}) {
         if (wval(p.kind) <= wv) continue
         const d = dist3(p.pos, pos) * (p.kind === "laser" ? P.loot_radius / P.laser_seek : P.loot_radius / Math.max(P.loot_radius, P.weapon_seek))
         if ((P.weapon_pref[p.kind] || 0) > 0 && d < bd && Math.abs(p.pos[2] - pos[2]) < 4) { best = [p.pos[0], p.pos[1]]; bd = d }
+      }
+      if (!best && P.pick_mem && S.pickMem) {
+        // fetch a remembered weapon: far for an empty slot, nearer for an upgrade over what we hold
+        const empty = held.some((k) => k === null)
+        let bp = null, bdd = 1e9
+        for (const v of S.pickMem.values()) {
+          if (held.includes(v.kind) || v.kind === "gun" || wval(v.kind) <= wv || !((P.weapon_pref[v.kind] || 0) > 0)) continue
+          const lim = empty ? P.pick_mem_empty : P.pick_mem_swap
+          const d = dist2(v.pos, pos)
+          if (d < lim && d < bdd && Math.abs(v.pos[2] - (world ? world.height(v.pos[0], v.pos[1]) : v.pos[2])) < 3) { bdd = d; bp = [v.pos[0], v.pos[1]] }
+        }
+        if (bp) return [bp, "loot"]
       }
       if (best) return [best, "loot"]
       const armed = me.weapons.filter((w) => w && w.kind !== "gun").length >= P.fort_arms
