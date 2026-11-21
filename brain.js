@@ -20,7 +20,11 @@ export const DEFAULTS = {
   upgrade_order: ["plating", "armor", "nanites", "gun_damage", "laser_damage", "gun_rate", "laser_charge", "sensors",
     "gyros", "capacitor", "reactor", "jets", "servos", "gun_mag", "gun_velocity", "mortar_reload",
     "lightning_efficiency", "lightning_range", "lightning_chain", "mortar_splash", "mortar_velocity", "laser_pierce"],
-  weapon_pref: { laser: 3, mortar: 2, lightning: 1 },
+  weapon_pref: { laser: 3, lightning: 2, mortar: 0 },
+  laser_seek: 160,
+  squad_after: 45,        // walk this far for a laser when safe
+  squad_override: null,   // merged into params once practice-squad mode is confirmed
+  ffa_override: null,     // merged into params once free-for-all is detected
   farm_npcs: true,
   strafe: true,
   expose_w: 3.0,
@@ -249,7 +253,8 @@ export function makeBot(hello, mapFiles, override = {}) {
   function updateMode(obs) {
     const kills = obs.events.filter((e) => e.type === "kill").length
     const drop = S.lastAlive - obs.alive
-    if (drop > kills) { S.unexplained += drop - kills; if (S.unexplained >= 2) S.ffa = true }
+    if (drop > kills) { S.unexplained += drop - kills; if (S.unexplained >= 2 && !S.ffa) { S.ffa = true; S.squad = false; if (P.ffa_override) Object.assign(P, P.ffa_override) } }
+    if (!S.ffa && !S.squad && obs.t > P.squad_after && S.unexplained === 0) { S.squad = true; if (P.squad_override) Object.assign(P, P.squad_override) }
     S.lastAlive = obs.alive
   }
 
@@ -267,7 +272,7 @@ export function makeBot(hello, mapFiles, override = {}) {
         const k = p.kind
         if (held.includes(k)) continue
         const pref = P.weapon_pref[k] || 0
-        if (held[1] === null && k !== "gun") { act.take = p.id; return }
+        if (held[1] === null && k !== "gun" && pref > 0) { act.take = p.id; return }
         const cur = held[1] ? (P.weapon_pref[held[1]] || 0) : -1
         const charging = me.weapons[1] && (me.weapons[1].charge || 0) > 0
         if (pref > cur && !charging) { act.take = p.id; act.drop = 1; return }
@@ -531,8 +536,8 @@ export function makeBot(hello, mapFiles, override = {}) {
         if (held.includes(p.kind) || p.kind === "gun") continue
         const cur = held[1] ? (P.weapon_pref[held[1]] || 0) : -1
         if ((P.weapon_pref[p.kind] || 0) <= cur) continue
-        const d = dist3(p.pos, pos)
-        if (d < bd && Math.abs(p.pos[2] - pos[2]) < 4) { best = [p.pos[0], p.pos[1]]; bd = d }
+        const d = dist3(p.pos, pos) * (p.kind === "laser" ? P.loot_radius / P.laser_seek : 1)
+        if ((P.weapon_pref[p.kind] || 0) > 0 && d < bd && Math.abs(p.pos[2] - pos[2]) < 4) { best = [p.pos[0], p.pos[1]]; bd = d }
       }
       if (best) return [best, "loot"]
       for (const c of obs.crates || []) if (dist3(c.pos, pos) < 40 && Math.abs(c.pos[2] - pos[2]) < 6) return [[pos[0], pos[1]], "crate"]
@@ -765,7 +770,7 @@ export function makeBot(hello, mapFiles, override = {}) {
     if (P.ghost && t - S.lastDamagedT >= 3) act.fire = [false, false]
     if (!P.shoot_crates && mode === "crate") act.fire = [false, false]
     S.mode = mode
-    S.label = `${S.ffa ? "FFA" : "PR"} ${mode} hp${me.hp | 0} c${me.cubes}`
+    S.label = `${S.ffa ? "FFA" : S.squad ? "SQ" : "??"} ${mode} hp${me.hp | 0} c${me.cubes}`
     return act
   }
   return bot
