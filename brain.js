@@ -55,6 +55,7 @@ export const DEFAULTS = {
   bdodge: false, bdodge_reach: 3.6, bdodge_t: 0.6, bdodge_hold: 0.35,
   hostile_only: false, hostile_ang: 0.2, hostile_near: 60, hostile_mem: 4,
   short_retreat: 0, lethal: false, lethal_k: 0.8,
+  opp: false, opp_late: 4, opp_range: 130, fight_boost: false,
   ammo_track: false, pick_mem: false, pick_mem_empty: 160, pick_mem_swap: 90,
   fightmove: false, fr_gun: 88, fr_laser: 115, fr_light: 28, fr_range_w: 1.0, fr_los_w: 40, fr_expose_w: 28, fr_strafe_w: 8,
   overwhelm: 3, overwhelm_hp: 0.9,
@@ -340,6 +341,18 @@ export function makeBot(hello, mapFiles, override = {}) {
     return why
   }
 
+  function oppOK(m, me, d) {
+    // free-for-all opportunist: fight what attacks us, what is nearly dead, or what is busy shooting someone else
+    if (S.threats.has(m.id) && S.T - S.threats.get(m.id)[0] < 6) return true
+    if (d < 40 || m.id === S.targetId || m.id === S.finishId || S.alive <= P.opp_late) return true
+    const hpf = (m.hp ?? 1400) / Math.max(1, m.max_hp ?? 1400), my = me.hp / Math.max(1, me.max_hp)
+    if (hpf < 0.45 && d < 160 && my > 0.35) return true
+    const toMe = Math.atan2(me.pos[1] - m.pos[1], me.pos[0] - m.pos[0])
+    const hasL = me.weapons.some((w) => w && w.kind === "laser")
+    if (m.aim && Math.abs(angDiff(m.aim[0], toMe)) > 0.7 && d < P.opp_range && (hasL || my > 0.7) && my > 0.5) return true
+    return false
+  }
+
   function losing(me, enemies, target, hpFrac) {
     // short retreat signal: outnumbered while hurt, or clearly out-traded by the one we're fighting
     const near = enemies.filter((m) => dist2(m.pos, me.pos) < 160).length
@@ -358,6 +371,7 @@ export function makeBot(hello, mapFiles, override = {}) {
       const d = dist3(m.pos, me.pos)
       if (d > 260) continue
       if (P.hostile_only && S.squad && !hostile(m, me, d)) continue
+      if (P.opp && !S.squad && !oppOK(m, me, d)) continue
       const hpf = (m.hp ?? 1400) / Math.max(1, m.max_hp ?? 1400)
       let s = d + hpf * 90
       if (S.threats.has(m.id)) s -= 60
@@ -1066,6 +1080,7 @@ export function makeBot(hello, mapFiles, override = {}) {
     const hpFrac = me.hp / Math.max(1, me.max_hp)
     S.T = t
     S.late = obs.zone.next_radius <= 70 || obs.alive <= 3
+    S.alive = obs.alive
     track(obs, enemies)
     remember(obs)
     takeLoot(obs, act)
@@ -1150,6 +1165,12 @@ export function makeBot(hello, mapFiles, override = {}) {
     if (mode === "retreat" || mode === "zone_run" || mode === "escape") boost = me.energy > 15
     S.dodging = !!dodge
     if (dodge) { move = dodge; boost = boost || me.energy > (P.bdodge ? 8 : 20) }
+    if (P.fight_boost && (mode === "rfight" || mode === "peek" || mode === "kite")) {
+      // keep moving fast while exposed in a fight (hysteresis so the dodge always has energy left)
+      S.fbOn = me.energy > 60 ? true : me.energy < 30 ? false : !!S.fbOn
+      const charging = me.weapons.some((w) => w && w.kind === "laser" && (w.charge || 0) > 0)
+      if (S.fbOn && !charging && me.grounded !== false) boost = true
+    }
     if (mode === "finish") boost = me.energy > 30
     if (!me.in_zone) boost = me.energy > 10
     let jump = false, jet = false
