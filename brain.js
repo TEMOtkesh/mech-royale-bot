@@ -41,6 +41,7 @@ export const DEFAULTS = {
   roof_min_h: 14, roof_max_h: 48, roof_fire: true, roof_center_w: 0.25,
   idle: false,
   stick: 70,
+  finish: false, finish_hp: 0.4,
   recover_hp: 0.7,
   precharge: true,           // experiment: stand still, never fire
   ghost: false,          // never fire unless we were hit in the last 3 s
@@ -305,6 +306,7 @@ export function makeBot(hello, mapFiles, override = {}) {
       if (s < bs) { bs = s; best = m }
       if (m.id === S.targetId) { cur = m; cs = s }
     }
+    if (S.finishId != null) { const f = enemies.find((m) => m.id === S.finishId); if (f) { S.targetId = f.id; return f } }
     // stickiness: don't thrash between targets (finish what we started)
     if (cur && cs < bs + P.stick) best = cur
     S.targetId = best ? best.id : null
@@ -527,6 +529,25 @@ export function makeBot(hello, mapFiles, override = {}) {
       }
     }
     const predator = P.strategy === "predator"
+    if (P.finish && !P.ghost) {
+      // chase down a weakened enemy: fleeing mechs show their back (x1.5 damage)
+      let fin = null
+      for (const m of enemies) {
+        const f = (m.hp ?? 1400) / Math.max(1, m.max_hp ?? 1400)
+        const d = dist2(m.pos, pos)
+        if (f < P.finish_hp && d < 200 && hpFrac > 0.35 && (!fin || f < fin.f)) fin = { m, f, d }
+      }
+      if (!fin && S.finishId != null) {
+        const v = S.tracked.get(S.finishId)
+        if (v && t - v.t < 4 && v.hp / v.max_hp < P.finish_hp) fin = { m: { id: S.finishId, pos: v.pos, hp: v.hp, max_hp: v.max_hp }, d: dist2(v.pos, pos), f: v.hp / v.max_hp, ghost: true }
+      }
+      if (fin) {
+        S.finishId = fin.m.id; S.targetId = fin.m.id
+        if (fin.d < 25 && !fin.ghost) return [[pos[0], pos[1]], "finish"]
+        return [[fin.m.pos[0], fin.m.pos[1]], "finish"]
+      }
+      S.finishId = null
+    }
     if (target && P.peek && (!P.ghost || t - S.lastDamagedT < 6) && (predator || dist3(target.pos, pos) < P.engage_range || underFire)) {
       return [duelPoint(obs, me, target, hpFrac), S.duelState]
     }
@@ -753,6 +774,7 @@ export function makeBot(hello, mapFiles, override = {}) {
       move = mode === "hold" && !P.drift ? [sx, sy] : (mode === "hold" ? [sx, sy] : norm2(move[0] * 0.6 + sx * 0.8, move[1] * 0.6 + sy * 0.8))
     }
     if (mode === "retreat" || mode === "zone_run") boost = me.energy > 15
+    if (mode === "finish") boost = me.energy > 30
     if (!me.in_zone) boost = me.energy > 10
     let jump = false, jet = false
     if (S.roofPlan && S.roofPlan.jet) {
@@ -769,7 +791,7 @@ export function makeBot(hello, mapFiles, override = {}) {
     act.jump = !!jump
     if (P.strategy === "prey" && P.slow_walk && mode === "drift" && !underFire) { act.move = [act.move[0] * 0.4, act.move[1] * 0.4]; act.boost = false }
     let fireTarget = target
-    if (P.strategy === "prey" && target && mode !== "peek" && mode !== "hide") {
+    if (P.strategy === "prey" && target && mode !== "peek" && mode !== "hide" && mode !== "finish") {
       const d = dist3(target.pos, pos)
       const th = S.threats.get(target.id)
       const hitMe = th && t - th[0] < 6
