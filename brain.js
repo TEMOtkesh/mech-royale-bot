@@ -249,12 +249,13 @@ export function makeBot(hello, mapFiles, override = {}) {
     threats: new Map(), lastDamagedT: -99, lastDamageBearing: null, tracked: new Map(),
     rp: null, rpUntil: 0, hist: [], mode: "", label: "",
   }
+  S.baseP = JSON.parse(JSON.stringify(P))
   const bot = { name: P.name || "kesh-mech", P, S, world }
 
   function updateMode(obs) {
     const kills = obs.events.filter((e) => e.type === "kill").length
     const drop = S.lastAlive - obs.alive
-    if (drop > kills) { S.unexplained += drop - kills; if (S.unexplained >= 2 && !S.ffa) { S.ffa = true; S.squad = false; if (P.ffa_override) Object.assign(P, P.ffa_override) } }
+    if (drop > kills) { S.unexplained += drop - kills; if (S.unexplained >= 2 && !S.ffa) { S.ffa = true; S.squad = false; Object.assign(P, S.baseP, P.ffa_override || {}) } }
     if (!S.ffa && !S.squad && obs.t > P.squad_after && S.unexplained === 0) { S.squad = true; if (P.squad_override) Object.assign(P, P.squad_override) }
     S.lastAlive = obs.alive
   }
