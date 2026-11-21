@@ -48,6 +48,8 @@ aim_noise: 0,
 dodge: true,
 jink: 0, jink_min: 0.25, jink_max: 0.6,
 kite: false, kite_range: 90, keep_fight: false,
+bdodge: false, bdodge_reach: 3.6, bdodge_t: 0.6, bdodge_hold: 0.35,
+hostile_only: false, hostile_ang: 0.12, hostile_near: 25, hostile_mem: 8,
 overwhelm: 3, overwhelm_hp: 0.9,
 fortress: false, fort_open: 5, fort_arms: 1, fort_after: 60,
 econ: false, econ_radius: 180, econ_hp: 0.5, econ_cubes: 10,
@@ -302,11 +304,21 @@ return
 }
 }
 }
+function hostile(m, me, d) {
+if (S.threats.has(m.id) || m.id === S.targetId || m.id === S.finishId || d < P.hostile_near) return true
+if (S.hostileT && S.hostileT.has(m.id) && S.T - S.hostileT.get(m.id) < P.hostile_mem) return true
+if (m.aim && d < 250) {
+const toMe = Math.atan2(me.pos[1] - m.pos[1], me.pos[0] - m.pos[0])
+if (Math.abs(angDiff(m.aim[0], toMe)) < Math.max(P.hostile_ang, Math.atan2(5, d))) { S.hostileT = S.hostileT || new Map(); S.hostileT.set(m.id, S.T); return true }
+}
+return false
+}
 function chooseTarget(me, enemies) {
 let best = null, bs = 1e18, cur = null, cs = 1e18
 for (const m of enemies) {
 const d = dist3(m.pos, me.pos)
 if (d > 260) continue
+if (P.hostile_only && S.squad && !hostile(m, me, d)) continue
 const hpf = (m.hp ?? 1400) / Math.max(1, m.max_hp ?? 1400)
 let s = d + hpf * 90
 if (S.threats.has(m.id)) s -= 60
@@ -867,6 +879,7 @@ if (obs.offer) act.pick = pickUpgrade(obs.offer)
 const enemies = obs.mechs.filter((m) => m.kind === "mech")
 const npcs = obs.mechs.filter((m) => m.kind === "npc")
 const hpFrac = me.hp / Math.max(1, me.max_hp)
+S.T = t
 track(obs, enemies)
 remember(obs)
 takeLoot(obs, act)
@@ -901,6 +914,34 @@ const dl = hyp(lx - pos[0], ly - pos[1])
 if (tl < 3 && dl < mg.splash_radius * 1.6) { const [ux, uy] = norm2(pos[0] - lx, pos[1] - ly); dodge = dl < 0.5 ? [1, 0] : [ux, uy]; break }
 }
 }
+if (P.bdodge && !dodge) {
+const mv = me.vel || [0, 0, 0]
+if (S.bdodgeUntil != null && t < S.bdodgeUntil) dodge = S.bdodgeDir
+else {
+let worst = null, wt = 1e9
+for (const p of obs.projectiles || []) {
+if (p.kind === "mortar") continue
+const rx = p.pos[0] - pos[0], ry = p.pos[1] - pos[1]
+const vx = p.vel[0] - mv[0], vy = p.vel[1] - mv[1], vv = vx * vx + vy * vy
+if (vv < 100) continue
+const ts = -(rx * vx + ry * vy) / vv
+if (ts < 0.04 || ts > P.bdodge_t) continue
+const cx = rx + vx * ts, cy = ry + vy * ts, miss = hyp(cx, cy)
+const z = p.pos[2] + p.vel[2] * ts - pos[2]
+if (miss > P.bdodge_reach || z < -1 || z > 10) continue
+if (ts < wt) { wt = ts; worst = [vx, vy, cx, cy] }
+}
+if (worst) {
+const [vx, vy, cx, cy] = worst, l = hyp(vx, vy), nx = -vy / l, ny = vx / l
+const cn = cx * nx + cy * ny
+let sg = Math.abs(cn) > 0.3 ? -Math.sign(cn) : (S.bdodgeSide || (rnd() < 0.5 ? -1 : 1))
+let dx = nx * sg, dy = ny * sg
+if (world && world.blockedAt(pos[0] + dx * 5, pos[1] + dy * 5)) { dx = -dx; dy = -dy; sg = -sg }
+S.bdodgeSide = sg; S.bdodgeDir = [dx, dy]; S.bdodgeUntil = t + P.bdodge_hold
+dodge = [dx, dy]
+}
+}
+}
 if (target && (mode === "fight" || mode === "hold") && P.strafe) {
 if (t > S.strafeT) { S.strafeDir = rnd() < 0.5 ? -1 : 1; S.strafeT = t + uni(0.4, 1.1) }
 const [px, py] = norm2(-(target.pos[1] - pos[1]), target.pos[0] - pos[0])
@@ -918,7 +959,7 @@ move = mlen > 0.2 ? norm2(move[0] + sx * P.jink, move[1] + sy * P.jink) : [sx, s
 }
 if (mode === "retreat" || mode === "zone_run" || mode === "escape") boost = me.energy > 15
 S.dodging = !!dodge
-if (dodge) { move = dodge; boost = boost || me.energy > 20 }
+if (dodge) { move = dodge; boost = boost || me.energy > (P.bdodge ? 8 : 20) }
 if (mode === "finish") boost = me.energy > 30
 if (!me.in_zone) boost = me.energy > 10
 let jump = false, jet = false
