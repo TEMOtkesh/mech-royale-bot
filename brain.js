@@ -44,6 +44,7 @@ export const DEFAULTS = {
   roof_min_h: 14, roof_max_h: 48, roof_fire: true, roof_center_w: 0.25,
   idle: false,
   stick: 70,
+  aim_noise: 0,
   dodge: true,
   overwhelm: 3, overwhelm_hp: 0.9,
   fortress: false, fort_open: 5, fort_arms: 1, fort_after: 60,
@@ -841,6 +842,10 @@ export function makeBot(hello, mapFiles, override = {}) {
         const mv = act.move || [0, 0]
         aim = hyp(mv[0], mv[1]) > 0.3 ? [Math.atan2(mv[1], mv[0]) + Math.sin(t * 1.3) * 0.9, 0] : [me.aim[0] + 0.25, 0]
       }
+    }
+    if (aim && P.aim_noise) {
+      if (!S.noiseT || obs.t > S.noiseT) { S.noise = [(rnd() * 2 - 1) * P.aim_noise, (rnd() * 2 - 1) * P.aim_noise * 0.5]; S.noiseT = obs.t + 0.8 }
+      aim[0] += S.noise[0]; aim[1] += S.noise[1]
     }
     if (aim) { aim[1] = clamp(aim[1], -0.69, 1.29); act.aim = [+aim[0].toFixed(4), +aim[1].toFixed(4)] }
     act.fire = fire
