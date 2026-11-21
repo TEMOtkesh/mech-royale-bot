@@ -35,7 +35,9 @@ export const DEFAULTS = {
   roof: false,           // camp on a roof inside the zone
   roof_min_h: 14, roof_max_h: 48, roof_fire: true, roof_center_w: 0.25,
   idle: false,
-  stick: 70,           // experiment: stand still, never fire
+  stick: 70,
+  recover_hp: 0.7,
+  precharge: true,           // experiment: stand still, never fire
   ghost: false,          // never fire unless we were hit in the last 3 s
   shoot_crates: true,
 }
@@ -536,6 +538,12 @@ export function makeBot(hello, mapFiles, override = {}) {
       for (const c of obs.crates || []) if (dist3(c.pos, pos) < 40 && Math.abs(c.pos[2] - pos[2]) < 6) return [[pos[0], pos[1]], "crate"]
     }
     if (underFire) return [coverPoint(pos, null, S.lastDamageBearing), "evade"]
+    if (hpFrac < P.recover_hp && known(t, 8).some((e) => e.src === "see")) {
+      // hold still behind cover and regenerate before re-engaging
+      if (!S.recoverAt || dist2(S.recoverAt, pos) > 15) S.recoverAt = coverPoint(pos, null, S.lastDamageBearing)
+      return [S.recoverAt, "recover"]
+    }
+    S.recoverAt = null
     if (known(t, 6).length && P.drift) return [riskPoint(obs, me, null), "drift"]
     return [zg || [pos[0], pos[1]], "idle"]
   }
@@ -556,7 +564,9 @@ export function makeBot(hello, mapFiles, override = {}) {
     const d = dist2(target.pos, pos)
     const thp = (target.hp ?? 1400) / Math.max(1, target.max_hp ?? 1400)
     const ready = weaponReady(me)
-    const wantPeek = d < 30 || (ready && (hpFrac > P.peek_hide_hp || thp < hpFrac * 0.8))
+    const lw = me.weapons.find((w) => w && w.kind === "laser")
+    const laserCharged = lw && (lw.charge || 0) >= lw.stats.charge * 0.9
+    const wantPeek = d < 30 || laserCharged || (ready && (hpFrac > P.peek_hide_hp || thp < hpFrac * 0.8))
     if (!world) { S.duelState = "duel"; return [pos[0], pos[1]] }
     // cache spots for a short while
     if (!S.duel || t > S.duel.until || dist2(S.duel.tpos, target.pos) > 12) {
@@ -748,6 +758,10 @@ export function makeBot(hello, mapFiles, override = {}) {
       if (!(d < P.prey_fire_range || hitMe || weak)) fireTarget = null
     }
     aimAndFire(obs, me, fireTarget, npcs, act, mode)
+    if (mode === "hide" && P.precharge) {
+      // pre-charge the laser behind cover, then peek to release
+      me.weapons.forEach((w, i) => { if (w && w.kind === "laser" && w.cooldown <= 0 && (w.charge || 0) < w.stats.charge * 0.95) act.fire[i] = true })
+    }
     if (P.ghost && t - S.lastDamagedT >= 3) act.fire = [false, false]
     if (!P.shoot_crates && mode === "crate") act.fire = [false, false]
     S.mode = mode
