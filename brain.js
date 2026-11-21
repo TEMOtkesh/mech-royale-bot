@@ -44,7 +44,7 @@ export const DEFAULTS = {
   roof_min_h: 14, roof_max_h: 48, roof_fire: true, roof_center_w: 0.25,
   idle: false,
   stick: 70,
-  lead_k: 1.0, vel_ema: 1.0,
+  lead_k: 1.0, vel_ema: 1.0, gun_tol: 1.6,
   laser_direct: true,
   aim_noise: 0,
   dodge: true,
@@ -827,7 +827,7 @@ export function makeBot(hello, mapFiles, override = {}) {
         if (!wp) return
         const st = wp.stats
         if (wp.kind === "gun") {
-          if (clear && d < st.range && err < tol * 1.6) fire[i] = true
+          if (clear && d < st.range && err < tol * P.gun_tol) fire[i] = true
           if ((wp.ammo ?? 1) === 0 && (wp.reload ?? 0) === 0) act.reload = true
         } else if (wp.kind === "laser") {
           const ch = wp.charge || 0
