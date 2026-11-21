@@ -30,6 +30,10 @@ export const DEFAULTS = {
   slow_walk: true,
   drift: true,
   hunt_after: 0,
+  peek: false,           // corner-peek dueling: shoot from a peek spot, hide to reload/regen
+  peek_hide_hp: 0.55,
+  roof: false,           // camp on a roof inside the zone
+  roof_min_h: 14, roof_max_h: 48, roof_fire: true,
   ghost: false,          // never fire unless we were hit in the last 3 s
   shoot_crates: true,
 }
@@ -85,7 +89,21 @@ export class World {
         if (p.base < g + 9.5 && p.top > g + 1.2) this.block[k] = 1
         cnt++; sx += cx; sy += cy
       }
-      if (p.kind === "building" && cnt >= 20) this.roofs.push({ x: sx / cnt, y: sy / cnt, top: p.top, cells: cnt })
+      if (p.kind === "building" && cnt >= 20) {
+        const cx = sx / cnt, cy = sy / cnt
+        // roof spot: building cell nearest the centroid that has building cells all around (away from edges)
+        let best = null, bd = 1e18
+        for (let j = Math.max(0, j0); j <= Math.min(this.ny - 1, j1); j++) for (let i = Math.max(0, i0); i <= Math.min(this.nx - 1, i1); i++) {
+          const [x, y] = this.cellCenter(i, j)
+          if (!pip(x, y, ring)) continue
+          let inner = 0
+          for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { const [xx, yy] = this.cellCenter(i + di, j + dj); if (pip(xx, yy, ring)) inner++ }
+          if (inner < 9) continue
+          const dd = hyp(x - cx, y - cy)
+          if (dd < bd) { bd = dd; best = [x, y] }
+        }
+        if (best) this.roofs.push({ x: best[0], y: best[1], top: p.top, ground: this.height(best[0], best[1]), cells: cnt, ring })
+      }
     }
     this.cost = new Float32Array(N).fill(1)
     for (let j = 0; j < this.ny; j++) for (let i = 0; i < this.nx; i++) {
@@ -397,8 +415,72 @@ export function makeBot(hello, mapFiles, override = {}) {
     return [pos[0] + ax * 40, pos[1] + ay * 40]
   }
 
+  function pickRoof(obs, pos) {
+    const z = obs.zone, nc = z.next_center, nr = z.next_radius
+    let best = null, bs = 1e18
+    for (const r of world.roofs) {
+      const h = r.top - r.ground
+      if (h < P.roof_min_h || h > P.roof_max_h) continue
+      const dz = hyp(r.x - nc[0], r.y - nc[1])
+      if (dz > nr * 0.8 && nr > 30) continue
+      const s = dz * 0.5 + hyp(r.x - pos[0], r.y - pos[1]) - Math.min(r.cells, 300) * 0.3
+      if (s < bs) { bs = s; best = r }
+    }
+    return best
+  }
+  function onRoofOf(pos) {
+    if (!world) return null
+    for (const r of world.roofs) if (pos[2] > r.top - 1.5 && pos[2] < r.top + 3 && pip(pos[0], pos[1], r.ring)) return r
+    return null
+  }
+  function roofPlan(obs, me) {
+    const pos = me.pos, t = obs.t, z = obs.zone
+    if (!S.roof || t > S.roofCheck) {
+      const cur = S.roof
+      const nc = z.next_center, nr = z.next_radius
+      const stillGood = cur && (hyp(cur.x - nc[0], cur.y - nc[1]) < Math.max(nr * 0.8, 10))
+      if (!stillGood) S.roof = pickRoof(obs, pos)
+      S.roofCheck = t + 2
+    }
+    const R = S.roof
+    if (!R) return null
+    const on = onRoofOf(pos)
+    if (on === R) { S.climb = null; return { goal: [R.x, R.y], mode: "roof", direct: true } }
+    if (on && on !== R) return { goal: [R.x, R.y], mode: "roof_hop", direct: true, jet: true }
+    // approach the wall: nearest walkable cell to roof spot
+    const [ri, rj] = world.cellOf(R.x, R.y)
+    if (!S.roofBase || S.roofBase.r !== R) {
+      let best = null, bd = 1e18
+      for (let dj = -14; dj <= 14; dj++) for (let di = -14; di <= 14; di++) {
+        const i = ri + di, j = rj + dj
+        if (!world.inb(i, j) || world.block[j * world.nx + i]) continue
+        const [x, y] = world.cellCenter(i, j)
+        const dd = hyp(x - R.x, y - R.y) + hyp(x - pos[0], y - pos[1]) * 0.15
+        if (dd < bd) { bd = dd; best = [x, y] }
+      }
+      S.roofBase = { r: R, p: best }
+    }
+    const base = S.roofBase.p
+    if (!base) return null
+    const db = dist2(base, pos)
+    const need = (R.top - pos[2]) / 60 * 100 + 15
+    if (!S.climb && db > 3) return { goal: base, mode: "to_roof" }
+    if (!S.climb) {
+      if (me.energy < Math.min(need, me.max_energy - 1)) return { goal: base, mode: "charge" }
+      S.climb = { t0: t }
+    }
+    if (t - S.climb.t0 > 8) { S.climb = null; S.roofBase = null; S.roof = null; S.roofCheck = 0; return null }
+    return { goal: [R.x, R.y], mode: "climb", direct: true, jet: true }
+  }
+
   function movementGoal(obs, me, enemies, target, hpFrac, underFire) {
     const pos = me.pos, t = obs.t
+    if (P.roof && world) {
+      const zr = !me.in_zone && !onRoofOf(pos)
+      const plan = zr ? null : roofPlan(obs, me)
+      if (plan) { S.roofPlan = plan; return [plan.goal, plan.mode] }
+    }
+    S.roofPlan = null
     const zg = zoneGoal(obs, pos)
     if (!me.in_zone || zoneUrgent(obs, pos)) return [zg || obs.zone.next_center, "zone_run"]
     if (hpFrac < P.retreat_hp && (target || underFire)) return [coverPoint(pos, target ? target.pos : null, S.lastDamageBearing), "retreat"]
@@ -413,6 +495,9 @@ export function makeBot(hello, mapFiles, override = {}) {
       }
     }
     const predator = P.strategy === "predator"
+    if (target && P.peek && (predator || dist3(target.pos, pos) < P.engage_range || underFire)) {
+      return [duelPoint(obs, me, target, hpFrac), S.duelState]
+    }
     if (target) {
       const d = dist3(target.pos, pos)
       if (predator && hpFrac >= P.retreat_hp) return [riskPoint(obs, me, target), "fight"]
@@ -444,6 +529,42 @@ export function makeBot(hello, mapFiles, override = {}) {
     return [zg || [pos[0], pos[1]], "idle"]
   }
 
+  function weaponReady(me) {
+    for (const wp of me.weapons) {
+      if (!wp) continue
+      if (wp.kind === "gun" && (wp.ammo ?? 1) > 0 && !(wp.reload > 0)) return true
+      if (wp.kind === "laser" && wp.cooldown <= 0.3) return true
+      if (wp.kind === "mortar" && wp.cooldown <= 0.2) return true
+    }
+    return false
+  }
+
+  function duelPoint(obs, me, target, hpFrac) {
+    const pos = me.pos, t = obs.t
+    const tp = [target.pos[0], target.pos[1], target.pos[2] + 4.5]
+    const d = dist2(target.pos, pos)
+    const thp = (target.hp ?? 1400) / Math.max(1, target.max_hp ?? 1400)
+    const ready = weaponReady(me)
+    const wantPeek = d < 30 || (ready && (hpFrac > P.peek_hide_hp || thp < hpFrac * 0.8))
+    if (!world) { S.duelState = "duel"; return [pos[0], pos[1]] }
+    // cache spots for a short while
+    if (!S.duel || t > S.duel.until || dist2(S.duel.tpos, target.pos) > 12) {
+      const hide = coverPoint(pos, target.pos, null)
+      let peek = null, bs = 1e18
+      for (const r of [0, 4, 8, 12, 16]) for (let k = 0; k < (r ? 12 : 1); k++) {
+        const a = k * Math.PI / 6, x = pos[0] + Math.cos(a) * r, y = pos[1] + Math.sin(a) * r
+        if (world.blockedAt(x, y)) continue
+        const gz = world.height(x, y)
+        if (!world.los([x, y, gz + 7], tp)) continue
+        const s = hyp(x - hide[0], y - hide[1]) * 1.0 + r * 0.5 + Math.abs(hyp(x - tp[0], y - tp[1]) - optRange(me)) * 0.05
+        if (s < bs) { bs = s; peek = [x, y] }
+      }
+      S.duel = { hide, peek: peek || [pos[0], pos[1]], tpos: target.pos, until: t + 1.5 }
+    }
+    S.duelState = wantPeek ? "peek" : "hide"
+    return wantPeek ? S.duel.peek : S.duel.hide
+  }
+
   function walkClear(a, b) {
     const d = dist2(a, b), n = Math.floor(d / 2) + 1
     for (let s = 1; s <= n; s++) { const f = s / n; if (world.blockedAt(a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f)) return false }
@@ -455,7 +576,7 @@ export function makeBot(hello, mapFiles, override = {}) {
     const [gx, gy] = goal
     const d = hyp(gx - pos[0], gy - pos[1])
     if (d < 1.5) return [0, 0]
-    if (!world || d < 6) return norm2(gx - pos[0], gy - pos[1])
+    if (!world || d < 6 || (S.roofPlan && S.roofPlan.direct)) return norm2(gx - pos[0], gy - pos[1])
     const need = !S.pathGoal || hyp(S.pathGoal[0] - gx, S.pathGoal[1] - gy) > 8 || t - S.pathT > 2 || !S.path.length
     if (need) { S.path = world.path([pos[0], pos[1]], [gx, gy]); S.pathGoal = [gx, gy]; S.pathT = t }
     while (S.path.length > 1 && hyp(S.path[0][0] - pos[0], S.path[0][1] - pos[1]) < 4.5) S.path.shift()
@@ -592,14 +713,22 @@ export function makeBot(hello, mapFiles, override = {}) {
     }
     if (mode === "retreat" || mode === "zone_run") boost = me.energy > 15
     if (!me.in_zone) boost = me.energy > 10
-    let jump, jet
-    ;[move, jump, jet] = unstick(me, move, t)
+    let jump = false, jet = false
+    if (S.roofPlan && S.roofPlan.jet) {
+      jump = me.grounded
+      jet = !me.grounded && me.energy > 1
+      if (S.roofPlan.mode === "roof_hop" && me.grounded) jump = true
+    } else if (S.roofPlan && S.roofPlan.mode === "roof") {
+      // stay put on the roof; small moves only
+    } else {
+      ;[move, jump, jet] = unstick(me, move, t)
+    }
     act.move = [+move[0].toFixed(3), +move[1].toFixed(3)]
     act.boost = !!(boost || jet)
     act.jump = !!jump
     if (P.strategy === "prey" && P.slow_walk && mode === "drift" && !underFire) { act.move = [act.move[0] * 0.4, act.move[1] * 0.4]; act.boost = false }
     let fireTarget = target
-    if (P.strategy === "prey" && target) {
+    if (P.strategy === "prey" && target && mode !== "peek" && mode !== "hide") {
       const d = dist3(target.pos, pos)
       const th = S.threats.get(target.id)
       const hitMe = th && t - th[0] < 6
