@@ -47,6 +47,7 @@ laser_direct: true,
 aim_noise: 0,
 dodge: true,
 jink: 0, jink_min: 0.25, jink_max: 0.6,
+kite: false, kite_range: 90, keep_fight: false,
 overwhelm: 3, overwhelm_hp: 0.9,
 fortress: false, fort_open: 5, fort_arms: 1, fort_after: 60,
 econ: false, econ_radius: 180, econ_hp: 0.5, econ_cubes: 10,
@@ -581,7 +582,8 @@ if (plan) { S.roofPlan = plan; return [plan.goal, plan.mode] }
 S.roofPlan = null
 const zg = zoneGoal(obs, pos)
 if (!me.in_zone || zoneUrgent(obs, pos)) return [zg || obs.zone.next_center, "zone_run"]
-if (hpFrac < P.retreat_hp && (target || underFire)) return [coverPoint(pos, target ? target.pos : null, S.lastDamageBearing), "retreat"]
+const winning = P.keep_fight && target && dist2(target.pos, pos) < 120 && ((target.hp ?? 1400) < 250 || (target.hp ?? 1400) < 0.5 * me.hp)
+if (hpFrac < P.retreat_hp && (target || underFire) && !winning) return [coverPoint(pos, target ? target.pos : null, S.lastDamageBearing), "retreat"]
 const attackers = [...S.threats.entries()].filter(([id, v]) => t - v[0] < 4).length
 const close = enemies.filter((m) => dist2(m.pos, pos) < 150).length
 if (Math.max(attackers, close) >= P.overwhelm && hpFrac < P.overwhelm_hp) {
@@ -683,6 +685,18 @@ const ready = weaponReady(me)
 const lw = me.weapons.find((w) => w && w.kind === "laser")
 const laserCharged = lw && (lw.charge || 0) >= lw.stats.charge * 0.9
 const wantPeek = d < 30 || laserCharged || (ready && (hpFrac > P.peek_hide_hp || thp < hpFrac * 0.8))
+if (P.kite && world && d < P.kite_range) {
+const tv = target.vel || [0, 0, 0], ux = (pos[0] - target.pos[0]) / Math.max(d, 1), uy = (pos[1] - target.pos[1]) / Math.max(d, 1)
+const closing = -(tv[0] * ux + tv[1] * uy)
+if (closing > 2 || d < 35) {
+const side = (S.kiteSide = S.kiteSide || (rnd() < 0.5 ? -1 : 1))
+for (const sd of [side, -side, 0]) {
+const dx = ux - uy * sd * 0.5, dy = uy + ux * sd * 0.5, l = hyp(dx, dy)
+const x = pos[0] + dx / l * 20, y = pos[1] + dy / l * 20
+if (!world.blockedAt(x, y) && walkClear(pos, [x, y])) { S.duelState = "kite"; if (sd !== side) S.kiteSide = sd || side; return [x, y] }
+}
+}
+}
 if (!world) { S.duelState = "duel"; return [pos[0], pos[1]] }
 if (!S.duel || t > S.duel.until || dist2(S.duel.tpos, target.pos) > 12) {
 const hide = coverPoint(pos, target.pos, null)
@@ -894,7 +908,7 @@ let sx = px * S.strafeDir, sy = py * S.strafeDir
 if (world && world.blockedAt(pos[0] + sx * 5, pos[1] + sy * 5)) { S.strafeDir *= -1; sx = -sx; sy = -sy }
 move = mode === "hold" && !P.drift ? [sx, sy] : (mode === "hold" ? [sx, sy] : norm2(move[0] * 0.6 + sx * 0.8, move[1] * 0.6 + sy * 0.8))
 }
-if (P.jink && target && (mode === "peek" || mode === "finish" || mode === "grab")) {
+if (P.jink && target && (mode === "peek" || mode === "finish" || mode === "grab" || mode === "kite")) {
 if (t > (S.jinkT ?? -1)) { S.jinkDir = rnd() < 0.5 ? -1 : 1; S.jinkT = t + uni(P.jink_min, P.jink_max) }
 const [px, py] = norm2(-(target.pos[1] - pos[1]), target.pos[0] - pos[0])
 let sx = px * S.jinkDir, sy = py * S.jinkDir
@@ -921,7 +935,7 @@ act.boost = !!(boost || jet)
 act.jump = !!jump
 if (P.strategy === "prey" && P.slow_walk && mode === "drift" && !underFire && !S.dodging) { act.move = [act.move[0] * 0.4, act.move[1] * 0.4]; act.boost = false }
 let fireTarget = target
-if (P.strategy === "prey" && target && mode !== "peek" && mode !== "hide" && mode !== "finish" && mode !== "grab") {
+if (P.strategy === "prey" && target && mode !== "peek" && mode !== "hide" && mode !== "finish" && mode !== "grab" && mode !== "kite") {
 const d = dist3(target.pos, pos)
 const th = S.threats.get(target.id)
 const hitMe = th && t - th[0] < 6
