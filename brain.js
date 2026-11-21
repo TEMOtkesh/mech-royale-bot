@@ -445,9 +445,13 @@ export function makeBot(hello, mapFiles, override = {}) {
     }
     const R = S.roof
     if (!R) return null
-    const on = onRoofOf(pos)
-    if (on === R) { S.climb = null; return { goal: [R.x, R.y], mode: "roof", direct: true } }
-    if (on && on !== R) return { goal: [R.x, R.y], mode: "roof_hop", direct: true, jet: true }
+    const inRing = pip(pos[0], pos[1], R.ring)
+    if (inRing && pos[2] > R.top - 1.5) { S.climb = null; return { goal: [R.x, R.y], mode: "roof", direct: true } }
+    const g0 = world.height(pos[0], pos[1])
+    const onAny = pos[2] > g0 + 4 && world.roofAt(pos[0], pos[1]) !== null
+    if (onAny || (S.climb && !me.grounded)) {
+      return { goal: [R.x, R.y], mode: "roof_hop", direct: true, jet: R.top > pos[2] + 0.5 }
+    }
     // approach the wall: nearest walkable cell to roof spot
     const [ri, rj] = world.cellOf(R.x, R.y)
     if (!S.roofBase || S.roofBase.r !== R) {
