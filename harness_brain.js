@@ -40,6 +40,7 @@ roof: false,           // camp on a roof inside the zone
 roof_min_h: 14, roof_max_h: 48, roof_fire: true, roof_center_w: 0.25,
 idle: false,
 stick: 70,
+lead_k: 1.0, vel_ema: 1.0,
 laser_direct: true,
 aim_noise: 0,
 dodge: true,
@@ -366,7 +367,12 @@ return [[best.v.pos[0] + ux * stand, best.v.pos[1] + uy * stand], "farm"]
 }
 function track(obs, enemies) {
 const t = obs.t
-for (const m of enemies) S.tracked.set(m.id, { pos: m.pos, vel: m.vel || [0, 0, 0], hp: m.hp ?? 1400, max_hp: m.max_hp ?? 1400, t, src: "see" })
+for (const m of enemies) {
+const prev = S.tracked.get(m.id), v = m.vel || [0, 0, 0]
+let ev = v
+if (prev && prev.src === "see" && prev.ev && t - prev.t < 0.5) { const k = P.vel_ema; ev = [prev.ev[0] * (1 - k) + v[0] * k, prev.ev[1] * (1 - k) + v[1] * k, v[2]] }
+S.tracked.set(m.id, { pos: m.pos, vel: v, ev, hp: m.hp ?? 1400, max_hp: m.max_hp ?? 1400, t, src: "see" })
+}
 const me = obs.self.pos
 const dmap = { near: 40, mid: 110, far: 230 }
 let n = 0
@@ -753,7 +759,10 @@ const [ay, ap] = me.aim
 if (tgt) {
 const gw = weapons[0]
 const gspeed = gw && gw.kind === "gun" ? gw.stats.speed : 252
-let [yaw, pitch, d] = lead(me, tgt.pos, tgt.vel || [0, 0, 0], gspeed, muzzle)
+let tvel = tgt.vel || [0, 0, 0]
+if (tkind === "mech" && P.vel_ema < 1) { const tr = S.tracked.get(tgt.id); if (tr && tr.ev) tvel = tr.ev }
+tvel = [tvel[0] * P.lead_k, tvel[1] * P.lead_k, tvel[2] * P.lead_k]
+let [yaw, pitch, d] = lead(me, tgt.pos, tvel, gspeed, muzzle)
 if (tkind === "npc") pitch = Math.atan2(tgt.pos[2] + 1.7 - pos[2] - muzzle, dist2(tgt.pos, pos))
 aim = [yaw, pitch]
 const clear = world ? world.los(eye, [tgt.pos[0], tgt.pos[1], tgt.pos[2] + (tkind === "mech" ? 4.5 : 1.7)]) : true
