@@ -49,7 +49,8 @@ dodge: true,
 jink: 0, jink_min: 0.25, jink_max: 0.6,
 kite: false, kite_range: 90, keep_fight: false,
 bdodge: false, bdodge_reach: 3.6, bdodge_t: 0.6, bdodge_hold: 0.35,
-hostile_only: false, hostile_ang: 0.12, hostile_near: 25, hostile_mem: 8,
+hostile_only: false, hostile_ang: 0.2, hostile_near: 60, hostile_mem: 4,
+short_retreat: 0,
 overwhelm: 3, overwhelm_hp: 0.9,
 fortress: false, fort_open: 5, fort_arms: 1, fort_after: 60,
 econ: false, econ_radius: 180, econ_hp: 0.5, econ_cubes: 10,
@@ -305,13 +306,27 @@ return
 }
 }
 function hostile(m, me, d) {
-if (S.threats.has(m.id) || m.id === S.targetId || m.id === S.finishId || d < P.hostile_near) return true
+if (S.threats.has(m.id) && S.T - S.threats.get(m.id)[0] < 6) return true
+if (m.id === S.targetId || m.id === S.finishId || d < P.hostile_near) return true
+if (S.late) return true
 if (S.hostileT && S.hostileT.has(m.id) && S.T - S.hostileT.get(m.id) < P.hostile_mem) return true
-if (m.aim && d < 250) {
-const toMe = Math.atan2(me.pos[1] - m.pos[1], me.pos[0] - m.pos[0])
-if (Math.abs(angDiff(m.aim[0], toMe)) < Math.max(P.hostile_ang, Math.atan2(5, d))) { S.hostileT = S.hostileT || new Map(); S.hostileT.set(m.id, S.T); return true }
+const hpf = (m.hp ?? 1400) / Math.max(1, m.max_hp ?? 1400)
+let why = hpf < 0.4 && d < 160
+const ux = (me.pos[0] - m.pos[0]) / Math.max(d, 1), uy = (me.pos[1] - m.pos[1]) / Math.max(d, 1)
+if (!why && m.vel && d < 180 && m.vel[0] * ux + m.vel[1] * uy > 3) why = true
+if (!why && m.aim && d < 190 && Math.abs(angDiff(m.aim[0], Math.atan2(uy, ux))) < Math.max(P.hostile_ang, Math.atan2(5, d))) why = true
+if (why) { S.hostileT = S.hostileT || new Map(); S.hostileT.set(m.id, S.T) }
+return why
 }
-return false
+function losing(me, enemies, target, hpFrac) {
+const near = enemies.filter((m) => dist2(m.pos, me.pos) < 160).length
+let lose = (near >= 2 && hpFrac < 0.55) || (near >= 3 && hpFrac < 0.8)
+if (target) {
+const tf = (target.hp ?? 1400) / Math.max(1, target.max_hp ?? 1400)
+if (hpFrac < 0.35 && tf > hpFrac + 0.1) lose = true
+if (tf < 0.25 && hpFrac > 0.2 && near <= 2) lose = false
+}
+return lose
 }
 function chooseTarget(me, enemies) {
 let best = null, bs = 1e18, cur = null, cs = 1e18
@@ -595,7 +610,10 @@ S.roofPlan = null
 const zg = zoneGoal(obs, pos)
 if (!me.in_zone || zoneUrgent(obs, pos)) return [zg || obs.zone.next_center, "zone_run"]
 const winning = P.keep_fight && target && dist2(target.pos, pos) < 120 && ((target.hp ?? 1400) < 250 || (target.hp ?? 1400) < 0.5 * me.hp)
-if (hpFrac < P.retreat_hp && (target || underFire) && !winning) return [coverPoint(pos, target ? target.pos : null, S.lastDamageBearing), "retreat"]
+if (P.short_retreat) {
+if (losing(me, enemies, target, hpFrac)) S.loseAt = t
+if (S.loseAt != null && t - S.loseAt < P.short_retreat) return [coverPoint(pos, target ? target.pos : null, S.lastDamageBearing), "retreat"]
+} else if (hpFrac < P.retreat_hp && (target || underFire) && !winning) return [coverPoint(pos, target ? target.pos : null, S.lastDamageBearing), "retreat"]
 const attackers = [...S.threats.entries()].filter(([id, v]) => t - v[0] < 4).length
 const close = enemies.filter((m) => dist2(m.pos, pos) < 150).length
 if (Math.max(attackers, close) >= P.overwhelm && hpFrac < P.overwhelm_hp) {
@@ -880,6 +898,7 @@ const enemies = obs.mechs.filter((m) => m.kind === "mech")
 const npcs = obs.mechs.filter((m) => m.kind === "npc")
 const hpFrac = me.hp / Math.max(1, me.max_hp)
 S.T = t
+S.late = obs.zone.next_radius <= 70 || obs.alive <= 3
 track(obs, enemies)
 remember(obs)
 takeLoot(obs, act)
