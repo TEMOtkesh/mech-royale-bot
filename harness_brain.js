@@ -53,7 +53,7 @@ hostile_only: false, hostile_ang: 0.2, hostile_near: 60, hostile_mem: 4,
 short_retreat: 0, lethal: false, lethal_k: 0.8,
 opp: false, opp_late: 4, opp_range: 130, fight_boost: false, aim_risk: 0, near_risk: 0,
 ammo_track: false, pick_mem: false, pick_mem_empty: 160, pick_mem_swap: 90,
-fightmove: false, fr_gun: 88, fr_laser: 115, fr_light: 28, fr_range_w: 1.0, fr_los_w: 40, fr_expose_w: 28, fr_strafe_w: 8, fr_aim_w: 0,
+fightmove: false, fr_gun: 88, fr_laser: 115, fr_light: 28, fr_range_w: 1.0, fr_los_w: 40, fr_expose_w: 28, fr_strafe_w: 8, fr_aim_w: 0, ghost_fight: false, iso_press: 0,
 overwhelm: 3, overwhelm_hp: 0.9,
 fortress: false, fort_open: 5, fort_arms: 1, fort_after: 60,
 econ: false, econ_radius: 180, econ_hp: 0.5, econ_cubes: 10,
@@ -488,7 +488,7 @@ return r
 }
 function fightPoint(obs, me, target, enemies, hpFrac) {
 const t = obs.t, pos = me.pos, z = obs.zone
-const pref = prefRange(me, target) * (P.ammo_track && vulnerable(target, t) ? 0.7 : 1)
+let pref = prefRange(me, target) * (P.ammo_track && vulnerable(target, t) ? 0.7 : 1)
 const tc = [target.pos[0], target.pos[1], target.pos[2] + 4.5]
 const bx = target.pos[0] - pos[0], by = target.pos[1] - pos[1], bd = hyp(bx, by) || 1
 if (t >= (S.fsUntil ?? -1)) { if (!S.fsDir || rnd() < 0.6) S.fsDir = -(S.fsDir || (rnd() < 0.5 ? 1 : -1)); S.fsUntil = t + uni(0.3, 1.0) }
@@ -498,6 +498,7 @@ const reloading = gun && gun.kind === "gun" && ((gun.reload ?? 0) > 0 || gun.amm
 const vuln = P.ammo_track && vulnerable(target, t)
 const wantLos = vuln || !(reloading && !weaponReady(me) && hpFrac < 0.5)
 const others = [...S.tracked.entries()].filter(([id, v]) => id !== target.id && v.src === "see" && t - v.t <= 3 && dist2(v.pos, pos) < 200).map(([, v]) => v)
+if (P.iso_press && !others.length && hpFrac > 0.6) pref *= P.iso_press
 let best = null, bs = -1e18, blockedSide = false
 for (let k = -1; k < 32; k++) {
 let cx = pos[0], cy = pos[1], r = 0, dx = 0, dy = 0
@@ -763,7 +764,7 @@ return [[fin.m.pos[0], fin.m.pos[1]], "finish"]
 }
 S.finishId = null
 }
-if (target && P.fightmove && !P.ghost && (dist3(target.pos, pos) < P.engage_range || underFire)) return [fightPoint(obs, me, target, enemies, hpFrac), "rfight"]
+if (target && P.fightmove && (!P.ghost || (P.ghost_fight && t - S.lastDamagedT < 6)) && (dist3(target.pos, pos) < P.engage_range || underFire)) return [fightPoint(obs, me, target, enemies, hpFrac), "rfight"]
 if (target && P.peek && (!P.ghost || t - S.lastDamagedT < 6) && (predator || dist3(target.pos, pos) < P.engage_range || underFire)) {
 return [duelPoint(obs, me, target, hpFrac), S.duelState]
 }
