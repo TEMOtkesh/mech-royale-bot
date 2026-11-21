@@ -40,6 +40,7 @@ roof: false,           // camp on a roof inside the zone
 roof_min_h: 14, roof_max_h: 48, roof_fire: true, roof_center_w: 0.25,
 idle: false,
 stick: 70,
+dodge: true,
 overwhelm: 3, overwhelm_hp: 0.9,
 fortress: false, fort_open: 5, fort_arms: 1, fort_after: 60,
 econ: false, econ_radius: 180, econ_hp: 0.5, econ_cubes: 10,
@@ -302,6 +303,9 @@ if (d > 260) continue
 const hpf = (m.hp ?? 1400) / Math.max(1, m.max_hp ?? 1400)
 let s = d + hpf * 90
 if (S.threats.has(m.id)) s -= 60
+const mine = me.weapons.filter(Boolean).map((w) => w.kind), theirs = m.weapons || []
+if (mine.includes("laser") && theirs.includes("mortar")) s -= 40      // cook-off +60%
+if (mine.includes("lightning") && theirs.includes("laser") && d < 50) s -= 40  // short their laser
 if (world && !world.los([me.pos[0], me.pos[1], me.pos[2] + 7], [m.pos[0], m.pos[1], m.pos[2] + 4.5])) s += 120
 if (s < bs) { bs = s; best = m }
 if (m.id === S.targetId) { cur = m; cs = s }
@@ -816,6 +820,32 @@ const underFire = t - S.lastDamagedT < 2
 let [goal, mode] = movementGoal(obs, me, enemies, target, hpFrac, underFire)
 let move = navigate(pos, goal, t)
 let boost = false
+let dodge = null
+if (P.dodge) {
+for (const m of enemies) {
+if (!m.charging) continue
+const toMe = Math.atan2(pos[1] - m.pos[1], pos[0] - m.pos[0])
+const d = dist2(m.pos, pos)
+if (Math.abs(angDiff(m.aim[0], toMe)) < Math.max(0.06, Math.atan2(6, d)) && d < 290) {
+const side = (S.dodgeSide = S.dodgeSide || (rnd() < 0.5 ? -1 : 1))
+dodge = [-Math.sin(toMe) * side, Math.cos(toMe) * side]
+if (world && world.blockedAt(pos[0] + dodge[0] * 6, pos[1] + dodge[1] * 6)) { S.dodgeSide = -side; dodge = [-dodge[0], -dodge[1]] }
+break
+}
+}
+if (!dodge) S.dodgeSide = 0
+const mg = cfg.weapons.mortar
+for (const p of obs.projectiles || []) {
+if (p.kind !== "mortar") continue
+const vz = p.vel[2], dz = p.pos[2] - (pos[2] + 2), g = mg.gravity
+const disc = vz * vz + 2 * g * dz
+if (disc < 0) continue
+const tl = (vz + Math.sqrt(disc)) / g
+const lx = p.pos[0] + p.vel[0] * tl, ly = p.pos[1] + p.vel[1] * tl
+const dl = hyp(lx - pos[0], ly - pos[1])
+if (tl < 3 && dl < mg.splash_radius * 1.6) { const [ux, uy] = norm2(pos[0] - lx, pos[1] - ly); dodge = dl < 0.5 ? [1, 0] : [ux, uy]; break }
+}
+}
 if (target && (mode === "fight" || mode === "hold") && P.strafe) {
 if (t > S.strafeT) { S.strafeDir = rnd() < 0.5 ? -1 : 1; S.strafeT = t + uni(0.4, 1.1) }
 const [px, py] = norm2(-(target.pos[1] - pos[1]), target.pos[0] - pos[0])
@@ -824,6 +854,8 @@ if (world && world.blockedAt(pos[0] + sx * 5, pos[1] + sy * 5)) { S.strafeDir *=
 move = mode === "hold" && !P.drift ? [sx, sy] : (mode === "hold" ? [sx, sy] : norm2(move[0] * 0.6 + sx * 0.8, move[1] * 0.6 + sy * 0.8))
 }
 if (mode === "retreat" || mode === "zone_run" || mode === "escape") boost = me.energy > 15
+S.dodging = !!dodge
+if (dodge) { move = dodge; boost = boost || me.energy > 20 }
 if (mode === "finish") boost = me.energy > 30
 if (!me.in_zone) boost = me.energy > 10
 let jump = false, jet = false
@@ -838,7 +870,7 @@ if (S.roofPlan.mode === "roof_hop" && me.grounded) jump = true
 act.move = [+move[0].toFixed(3), +move[1].toFixed(3)]
 act.boost = !!(boost || jet)
 act.jump = !!jump
-if (P.strategy === "prey" && P.slow_walk && mode === "drift" && !underFire) { act.move = [act.move[0] * 0.4, act.move[1] * 0.4]; act.boost = false }
+if (P.strategy === "prey" && P.slow_walk && mode === "drift" && !underFire && !S.dodging) { act.move = [act.move[0] * 0.4, act.move[1] * 0.4]; act.boost = false }
 let fireTarget = target
 if (P.strategy === "prey" && target && mode !== "peek" && mode !== "hide" && mode !== "finish") {
 const d = dist3(target.pos, pos)
