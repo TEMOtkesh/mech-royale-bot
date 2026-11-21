@@ -50,7 +50,7 @@ jink: 0, jink_min: 0.25, jink_max: 0.6,
 kite: false, kite_range: 90, keep_fight: false,
 bdodge: false, bdodge_reach: 3.6, bdodge_t: 0.6, bdodge_hold: 0.35,
 hostile_only: false, hostile_ang: 0.2, hostile_near: 60, hostile_mem: 4,
-short_retreat: 0,
+short_retreat: 0, lethal: false, lethal_k: 0.8,
 overwhelm: 3, overwhelm_hp: 0.9,
 fortress: false, fort_open: 5, fort_arms: 1, fort_after: 60,
 econ: false, econ_radius: 180, econ_hp: 0.5, econ_cubes: 10,
@@ -846,7 +846,13 @@ if ((wp.ammo ?? 1) === 0 && (wp.reload ?? 0) === 0) act.reload = true
 } else if (wp.kind === "laser") {
 const ch = wp.charge || 0
 const e2 = P.laser_direct ? lerr : err, t2 = P.laser_direct ? ltol : tol
-if (wp.cooldown <= 0 && d < st.range && clear) fire[i] = ch < st.charge * 0.95 ? true : !(e2 < t2)
+let full = st.charge * 0.95
+if (P.lethal && tkind === "mech" && ch >= (st.min_charge || 0.15)) {
+const frac = (st.min_frac ?? 0.35) + (1 - (st.min_frac ?? 0.35)) * Math.min(1, ch / st.charge)
+const mult = 1 + 0.04 * Math.min(me.cubes || 0, 10)
+if (st.damage * frac * mult * P.lethal_k >= (tgt.hp ?? 1400)) full = 0
+}
+if (wp.cooldown <= 0 && d < st.range && clear) fire[i] = ch < full ? true : !(e2 < t2)
 else if (ch > 0) fire[i] = !(e2 < t2 * 2)
 } else if (wp.kind === "lightning") {
 if (d < st.range * 0.95 && Math.abs(angDiff(ay, yaw)) < (st.cone_deg * Math.PI / 180) * 0.8 && clear) fire[i] = me.energy > P.lightning_min_energy
