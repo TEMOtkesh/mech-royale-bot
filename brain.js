@@ -44,7 +44,7 @@ export const DEFAULTS = {
   roof_min_h: 14, roof_max_h: 48, roof_fire: true, roof_center_w: 0.25,
   idle: false,
   stick: 70,
-  lead_k: 1.0, vel_ema: 1.0, gun_tol: 1.6, tac_reload: false,
+  lead_k: 1.0, vel_ema: 1.0, gun_tol: 1.6, tac_reload: false, aim_latency: 0,
   gun_select: false, gun_select_min: 50, gun_select_k: 0.5,
   grab_cubes: 0,
   laser_direct: true,
@@ -781,7 +781,8 @@ export function makeBot(hello, mapFiles, override = {}) {
 
   function lead(me, tp, tv, speed, muzzle) {
     const sx = me.pos[0], sy = me.pos[1], sz = me.pos[2] + muzzle
-    const tx = tp[0], ty = tp[1], tz = tp[2] + 4.5
+    const L = P.aim_latency
+    const tx = tp[0] + tv[0] * L, ty = tp[1] + tv[1] * L, tz = tp[2] + 4.5
     let tt = 0
     for (let i = 0; i < 3; i++) tt = hyp(tx + tv[0] * tt - sx, ty + tv[1] * tt - sy, tz + tv[2] * 0.3 * tt - sz) / speed
     const px = tx + tv[0] * tt, py = ty + tv[1] * tt, pz = tz + tv[2] * 0.3 * tt
