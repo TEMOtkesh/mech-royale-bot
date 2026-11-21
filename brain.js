@@ -46,6 +46,7 @@ export const DEFAULTS = {
   stick: 70,
   lead_k: 1.0, vel_ema: 1.0, gun_tol: 1.6, tac_reload: false,
   gun_select: false, gun_select_min: 50, gun_select_k: 0.5,
+  grab_cubes: 0,
   laser_direct: true,
   aim_noise: 0,
   dodge: true,
@@ -634,6 +635,12 @@ export function makeBot(hello, mapFiles, override = {}) {
       }
     }
     const predator = P.strategy === "predator"
+    if (P.grab_cubes && !P.ghost && hpFrac > 0.5) {
+      // kill drops: grab nearby cubes even mid-fight (+4% hp/dmg each, more upgrades)
+      let best = null, bd = P.grab_cubes
+      for (const c of obs.cubes || []) { const d = dist2(c.pos, pos); if (d < bd && Math.abs(c.pos[2] - pos[2]) < 4) { bd = d; best = c } }
+      if (best) return [[best.pos[0], best.pos[1]], "grab"]
+    }
     if (P.finish && !P.ghost) {
       // chase down a weakened enemy: fleeing mechs show their back (x1.5 damage)
       let fin = null
@@ -956,7 +963,7 @@ export function makeBot(hello, mapFiles, override = {}) {
     act.jump = !!jump
     if (P.strategy === "prey" && P.slow_walk && mode === "drift" && !underFire && !S.dodging) { act.move = [act.move[0] * 0.4, act.move[1] * 0.4]; act.boost = false }
     let fireTarget = target
-    if (P.strategy === "prey" && target && mode !== "peek" && mode !== "hide" && mode !== "finish") {
+    if (P.strategy === "prey" && target && mode !== "peek" && mode !== "hide" && mode !== "finish" && mode !== "grab") {
       const d = dist3(target.pos, pos)
       const th = S.threats.get(target.id)
       const hitMe = th && t - th[0] < 6

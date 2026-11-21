@@ -42,6 +42,7 @@ idle: false,
 stick: 70,
 lead_k: 1.0, vel_ema: 1.0, gun_tol: 1.6, tac_reload: false,
 gun_select: false, gun_select_min: 50, gun_select_k: 0.5,
+grab_cubes: 0,
 laser_direct: true,
 aim_noise: 0,
 dodge: true,
@@ -599,6 +600,11 @@ return [[dr.pos[0], dr.pos[1]], "drop"]
 }
 }
 const predator = P.strategy === "predator"
+if (P.grab_cubes && !P.ghost && hpFrac > 0.5) {
+let best = null, bd = P.grab_cubes
+for (const c of obs.cubes || []) { const d = dist2(c.pos, pos); if (d < bd && Math.abs(c.pos[2] - pos[2]) < 4) { bd = d; best = c } }
+if (best) return [[best.pos[0], best.pos[1]], "grab"]
+}
 if (P.finish && !P.ghost) {
 let fin = null
 for (const m of enemies) {
@@ -905,7 +911,7 @@ act.boost = !!(boost || jet)
 act.jump = !!jump
 if (P.strategy === "prey" && P.slow_walk && mode === "drift" && !underFire && !S.dodging) { act.move = [act.move[0] * 0.4, act.move[1] * 0.4]; act.boost = false }
 let fireTarget = target
-if (P.strategy === "prey" && target && mode !== "peek" && mode !== "hide" && mode !== "finish") {
+if (P.strategy === "prey" && target && mode !== "peek" && mode !== "hide" && mode !== "finish" && mode !== "grab") {
 const d = dist3(target.pos, pos)
 const th = S.threats.get(target.id)
 const hitMe = th && t - th[0] < 6
