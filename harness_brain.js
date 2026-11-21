@@ -51,6 +51,7 @@ kite: false, kite_range: 90, keep_fight: false,
 bdodge: false, bdodge_reach: 3.6, bdodge_t: 0.6, bdodge_hold: 0.35,
 hostile_only: false, hostile_ang: 0.2, hostile_near: 60, hostile_mem: 4,
 short_retreat: 0, lethal: false, lethal_k: 0.8,
+fightmove: false, fr_gun: 88, fr_laser: 115, fr_light: 28, fr_range_w: 1.0, fr_los_w: 40, fr_expose_w: 28, fr_strafe_w: 8,
 overwhelm: 3, overwhelm_hp: 0.9,
 fortress: false, fort_open: 5, fort_arms: 1, fort_after: 60,
 econ: false, econ_radius: 180, econ_hp: 0.5, econ_cubes: 10,
@@ -428,6 +429,54 @@ if (kinds.includes("lightning")) return 35
 if (kinds.includes("mortar")) return 120
 return 90
 }
+function prefRange(me, target) {
+const kinds = me.weapons.filter(Boolean).map((w) => w.kind), theirs = target.weapons || []
+let r = P.fr_gun
+if (kinds.includes("lightning") && me.energy > 15) r = P.fr_light
+else if (kinds.includes("laser")) r = P.fr_laser
+if (!kinds.includes("lightning")) {
+if (theirs.includes("lightning")) r = Math.max(r, 62)
+if (theirs.includes("mortar")) r = Math.max(r, 78)
+}
+return r
+}
+function fightPoint(obs, me, target, enemies, hpFrac) {
+const t = obs.t, pos = me.pos, z = obs.zone
+const pref = prefRange(me, target)
+const tc = [target.pos[0], target.pos[1], target.pos[2] + 4.5]
+const bx = target.pos[0] - pos[0], by = target.pos[1] - pos[1], bd = hyp(bx, by) || 1
+if (t >= (S.fsUntil ?? -1)) { if (!S.fsDir || rnd() < 0.6) S.fsDir = -(S.fsDir || (rnd() < 0.5 ? 1 : -1)); S.fsUntil = t + uni(0.3, 1.0) }
+const sx = -by / bd * S.fsDir, sy = bx / bd * S.fsDir
+const gun = me.weapons[0]
+const reloading = gun && gun.kind === "gun" && ((gun.reload ?? 0) > 0 || gun.ammo === 0)
+const wantLos = !(reloading && !weaponReady(me) && hpFrac < 0.5)
+const others = [...S.tracked.entries()].filter(([id, v]) => id !== target.id && v.src === "see" && t - v.t <= 3 && dist2(v.pos, pos) < 200).map(([, v]) => v)
+let best = null, bs = -1e18, blockedSide = false
+for (let k = -1; k < 32; k++) {
+let cx = pos[0], cy = pos[1], r = 0, dx = 0, dy = 0
+if (k >= 0) {
+const a = (k % 16) * Math.PI / 8; r = k < 16 ? 6 : 12
+dx = Math.cos(a); dy = Math.sin(a); cx = pos[0] + dx * r; cy = pos[1] + dy * r
+if (world && (world.blockedAt(cx, cy) || !walkClear(pos, [cx, cy]))) { if (k < 16 && dx * sx + dy * sy > 0.9) blockedSide = true; continue }
+}
+const gz = world ? world.height(cx, cy) : pos[2]
+const d = hyp(target.pos[0] - cx, target.pos[1] - cy)
+let sc = -P.fr_range_w * Math.abs(d - pref) - 0.3 * r
+const los = world ? world.los([cx, cy, gz + 7], tc) : true
+sc += (los === wantLos) ? P.fr_los_w : 0
+for (const e of others) if (!world || world.los([e.pos[0], e.pos[1], e.pos[2] + 8], [cx, cy, gz + 5])) sc -= P.fr_expose_w
+const dz = hyp(cx - z.next_center[0], cy - z.next_center[1])
+if (dz > z.next_radius * 0.9) sc -= (dz - z.next_radius * 0.9) * 0.4
+if (hyp(cx - z.center[0], cy - z.center[1]) > z.radius - 4) sc -= 60
+if (world) { let nb = 0; for (const [ox, oy] of [[3, 0], [-3, 0], [0, 3], [0, -3]]) if (world.blockedAt(cx + ox, cy + oy)) nb++; sc -= nb * 3 }
+if (k >= 0) sc += P.fr_strafe_w * (dx * sx + dy * sy)
+else sc -= 6
+if (sc > bs) { bs = sc; best = [cx, cy] }
+}
+if (blockedSide) { S.fsDir = -S.fsDir; S.fsUntil = t + 0.5 }
+S.duelState = "rfight"
+return best || [pos[0], pos[1]]
+}
 function riskPoint(obs, me, target) {
 const t = obs.t, pos = me.pos
 if (S.rp && t < S.rpUntil && dist2(S.rp, pos) > 3) return S.rp
@@ -656,6 +705,7 @@ return [[fin.m.pos[0], fin.m.pos[1]], "finish"]
 }
 S.finishId = null
 }
+if (target && P.fightmove && !P.ghost && (dist3(target.pos, pos) < P.engage_range || underFire)) return [fightPoint(obs, me, target, enemies, hpFrac), "rfight"]
 if (target && P.peek && (!P.ghost || t - S.lastDamagedT < 6) && (predator || dist3(target.pos, pos) < P.engage_range || underFire)) {
 return [duelPoint(obs, me, target, hpFrac), S.duelState]
 }
@@ -1001,7 +1051,7 @@ act.boost = !!(boost || jet)
 act.jump = !!jump
 if (P.strategy === "prey" && P.slow_walk && mode === "drift" && !underFire && !S.dodging) { act.move = [act.move[0] * 0.4, act.move[1] * 0.4]; act.boost = false }
 let fireTarget = target
-if (P.strategy === "prey" && target && mode !== "peek" && mode !== "hide" && mode !== "finish" && mode !== "grab" && mode !== "kite") {
+if (P.strategy === "prey" && target && mode !== "peek" && mode !== "hide" && mode !== "finish" && mode !== "grab" && mode !== "kite" && mode !== "rfight") {
 const d = dist3(target.pos, pos)
 const th = S.threats.get(target.id)
 const hitMe = th && t - th[0] < 6
