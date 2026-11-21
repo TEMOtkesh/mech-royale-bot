@@ -18,6 +18,7 @@ upgrade_order: ["plating", "armor", "nanites", "gun_damage", "laser_damage", "gu
 "lightning_efficiency", "lightning_range", "lightning_chain", "mortar_splash", "mortar_velocity", "laser_pierce"],
 weapon_pref: { laser: 3, lightning: 2, mortar: 0 },
 laser_seek: 160,
+drop_gun: false,        // allow laser + lightning loadout (drop the arm gun)
 squad_after: 45,        // walk this far for a laser when safe
 squad_override: null,   // merged into params once practice-squad mode is confirmed
 ffa_override: null,     // merged into params once free-for-all is detected
@@ -248,18 +249,29 @@ let best = 1e9, bi = 0
 offer.choices.forEach((c, i) => { const r = P.upgrade_order.indexOf(c.id); const rr = r < 0 ? 50 : r; if (rr < best) { best = rr; bi = i } })
 return bi
 }
+const wval = (k) => (k === null ? -1 : k === "gun" ? (P.drop_gun ? 1.5 : 99) : (P.weapon_pref[k] || 0))
+function worstSlot(me) {
+let wi = -1, wv = 1e9
+me.weapons.forEach((w, i) => {
+const v = w ? wval(w.kind) : -1
+const charging = w && w.kind === "laser" && (w.charge || 0) > 0
+if (!charging && v < wv) { wv = v; wi = i }
+})
+return [wi, wv]
+}
 function takeLoot(obs, act) {
 const me = obs.self, pos = me.pos, reach = cfg.loot.pickup_radius
 const held = me.weapons.map((w) => (w ? w.kind : null))
+const [wi, wv] = worstSlot(me)
 for (const p of obs.pickups || []) {
 if (dist2(p.pos, pos) < reach - 0.3 && Math.abs(p.pos[2] - pos[2]) < 3.8) {
 const k = p.kind
 if (held.includes(k)) continue
-const pref = P.weapon_pref[k] || 0
-if (held[1] === null && k !== "gun" && pref > 0) { act.take = p.id; return }
-const cur = held[1] ? (P.weapon_pref[held[1]] || 0) : -1
-const charging = me.weapons[1] && (me.weapons[1].charge || 0) > 0
-if (pref > cur && !charging) { act.take = p.id; act.drop = 1; return }
+const v = wval(k)
+if (v <= 0 || wi < 0 || v <= wv) continue
+act.take = p.id
+if (held[wi] !== null) act.drop = wi
+return
 }
 }
 }
@@ -316,6 +328,7 @@ for (const [k, v] of S.tracked) if (t - v.t > 8) S.tracked.delete(k)
 const known = (t, maxAge) => [...S.tracked.values()].filter((v) => t - v.t <= maxAge)
 function optRange(me) {
 const kinds = me.weapons.filter(Boolean).map((w) => w.kind)
+if (kinds.includes("laser") && kinds.includes("lightning")) return 40
 if (kinds.includes("laser")) return 150
 if (kinds.includes("lightning")) return 35
 if (kinds.includes("mortar")) return 120
@@ -504,10 +517,10 @@ if (safe) {
 let best = null, bd = P.loot_radius
 for (const c of obs.cubes || []) { const d = dist3(c.pos, pos); if (d < bd && Math.abs(c.pos[2] - pos[2]) < 4) { best = [c.pos[0], c.pos[1]]; bd = d } }
 const held = me.weapons.map((w) => (w ? w.kind : null))
+const wv = worstSlot(me)[1]
 for (const p of obs.pickups || []) {
 if (held.includes(p.kind) || p.kind === "gun") continue
-const cur = held[1] ? (P.weapon_pref[held[1]] || 0) : -1
-if ((P.weapon_pref[p.kind] || 0) <= cur) continue
+if (wval(p.kind) <= wv) continue
 const d = dist3(p.pos, pos) * (p.kind === "laser" ? P.loot_radius / P.laser_seek : 1)
 if ((P.weapon_pref[p.kind] || 0) > 0 && d < bd && Math.abs(p.pos[2] - pos[2]) < 4) { best = [p.pos[0], p.pos[1]]; bd = d }
 }
