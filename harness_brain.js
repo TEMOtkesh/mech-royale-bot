@@ -53,7 +53,7 @@ hostile_only: false, hostile_ang: 0.2, hostile_near: 60, hostile_mem: 4,
 short_retreat: 0, lethal: false, lethal_k: 0.8,
 opp: false, opp_late: 4, opp_range: 130, fight_boost: false, aim_risk: 0, near_risk: 0,
 ammo_track: false, pick_mem: false, pick_mem_empty: 160, pick_mem_swap: 90,
-fightmove: false, fr_gun: 88, fr_laser: 115, fr_light: 28, fr_range_w: 1.0, fr_los_w: 40, fr_expose_w: 28, fr_strafe_w: 8, fr_aim_w: 0, ghost_fight: false, iso_press: 0, late_base_t: 0, late_override: null,
+fightmove: false, fr_gun: 88, fr_laser: 115, fr_light: 28, fr_range_w: 1.0, fr_los_w: 40, fr_expose_w: 28, fr_strafe_w: 8, fr_aim_w: 0, ghost_fight: false, iso_press: 0, tgt_hpw: 90, tgt_low: 0, finish_fm: 0, late_base_t: 0, late_override: null,
 overwhelm: 3, overwhelm_hp: 0.9,
 fortress: false, fort_open: 5, fort_arms: 1, fort_after: 60,
 econ: false, econ_radius: 180, econ_hp: 0.5, econ_cubes: 10,
@@ -350,7 +350,7 @@ if (d > 260) continue
 if (P.hostile_only && S.squad && !hostile(m, me, d)) continue
 if (P.opp && !S.squad && !oppOK(m, me, d)) continue
 const hpf = (m.hp ?? 1400) / Math.max(1, m.max_hp ?? 1400)
-let s = d + hpf * 90
+let s = d + hpf * P.tgt_hpw - (hpf < 0.3 ? P.tgt_low : 0)
 if (S.threats.has(m.id)) s -= 60
 const mine = me.weapons.filter(Boolean).map((w) => w.kind), theirs = m.weapons || []
 if (mine.includes("laser") && theirs.includes("mortar")) s -= 40      // cook-off +60%
@@ -489,7 +489,7 @@ return r
 }
 function fightPoint(obs, me, target, enemies, hpFrac) {
 const t = obs.t, pos = me.pos, z = obs.zone
-let pref = prefRange(me, target) * (P.ammo_track && vulnerable(target, t) ? 0.7 : 1)
+let pref = S.prefOverride || prefRange(me, target) * (P.ammo_track && vulnerable(target, t) ? 0.7 : 1)
 const tc = [target.pos[0], target.pos[1], target.pos[2] + 4.5]
 const bx = target.pos[0] - pos[0], by = target.pos[1] - pos[1], bd = hyp(bx, by) || 1
 if (t >= (S.fsUntil ?? -1)) { if (!S.fsDir || rnd() < 0.6) S.fsDir = -(S.fsDir || (rnd() < 0.5 ? 1 : -1)); S.fsUntil = t + uni(0.3, 1.0) }
@@ -760,6 +760,7 @@ if (v && t - v.t < 4 && v.hp / v.max_hp < P.finish_hp) fin = { m: { id: S.finish
 }
 if (fin) {
 S.finishId = fin.m.id; S.targetId = fin.m.id
+if (P.finish_fm && P.fightmove && !fin.ghost && fin.d < 200) { S.prefOverride = P.finish_fm; const g = fightPoint(obs, me, fin.m, enemies, hpFrac); S.prefOverride = 0; return [g, "rfight"] }
 if (fin.d < 25 && !fin.ghost) return [[pos[0], pos[1]], "finish"]
 return [[fin.m.pos[0], fin.m.pos[1]], "finish"]
 }
