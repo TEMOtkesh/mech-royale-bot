@@ -97,3 +97,5 @@ python3 check/check.py --map-dir /arena -- docker run --rm -i --network none --c
 ## License
 
 MIT. See `LICENSE` (it also carries the notice of the MIT project this was originally derived from).
+
+
