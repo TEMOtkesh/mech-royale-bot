@@ -783,7 +783,7 @@ export function makeBot(hello, mapFiles, override = {}) {
     S.roofPlan = null
     const zg = zoneGoal(obs, pos)
     if (!me.in_zone || zoneUrgent(obs, pos)) return [zg || obs.zone.next_center, "zone_run"]
-    if (P.final_hold && obs.zone.next_radius <= P.final_hold) {
+    if (P.final_hold && obs.zone.next_radius <= P.final_hold && obs.t >= obs.zone.shrink_start) {
       // last circles: the zone kills survivors in order of distance from its end point, so stand on it
       const nc = obs.zone.next_center, tol = Math.max(2, Math.min(obs.zone.radius, 40) * 0.2)
       if (dist2(pos, nc) > tol) return [[nc[0], nc[1]], "zone_run"]
