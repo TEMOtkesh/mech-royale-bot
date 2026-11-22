@@ -53,7 +53,7 @@ hostile_only: false, hostile_ang: 0.2, hostile_near: 60, hostile_mem: 4,
 short_retreat: 0, lethal: false, lethal_k: 0.8,
 opp: false, opp_late: 4, opp_range: 130, fight_boost: false, aim_risk: 0, near_risk: 0,
 ammo_track: false, pick_mem: false, pick_mem_empty: 160, pick_mem_swap: 90,
-fightmove: false, fr_gun: 88, fr_laser: 115, fr_light: 28, fr_range_w: 1.0, fr_los_w: 40, fr_expose_w: 28, fr_strafe_w: 8, fr_aim_w: 0, ghost_fight: false, iso_press: 0, tgt_hpw: 90, tgt_low: 0, finish_fm: 0, tgt_need_los: false, finish_crowd: 0, finish_min_hp: 0.35, drops: true, grab_safe: false, slew_fire: false, self_lead: false, rear_guard: false, regen_hold: 0, final_hold: 0, ffa_late_alive: 0, ffa_late_override: null, ffa_early_t: 0, ffa_squad_need: 0, drop_heal: false, drop_heal_hp: 0.7, drop_heal_r: 220, fr_flank_w: 0, preaim: 0, ttk_rule: false, ttk_ratio: 0.8, ttk_live: false, late_base_t: 0, late_override: null,
+fightmove: false, fr_gun: 88, fr_laser: 115, fr_light: 28, fr_range_w: 1.0, fr_los_w: 40, fr_expose_w: 28, fr_strafe_w: 8, fr_aim_w: 0, ghost_fight: false, iso_press: 0, tgt_hpw: 90, tgt_low: 0, finish_fm: 0, tgt_need_los: false, finish_crowd: 0, finish_min_hp: 0.35, drops: true, grab_safe: false, slew_fire: false, self_lead: false, rear_guard: false, regen_hold: 0, final_hold: 0, ffa_late_alive: 0, ffa_late_override: null, ffa_early_t: 0, ffa_squad_need: 0, drop_heal: false, drop_heal_hp: 0.7, drop_heal_r: 220, fr_flank_w: 0, preaim: 0, ttk_rule: false, ttk_ratio: 0.8, ttk_live: false, fr_light_avoid: 0, late_base_t: 0, late_override: null,
 overwhelm: 3, overwhelm_hp: 0.9,
 fortress: false, fort_open: 5, fort_arms: 1, fort_after: 60,
 econ: false, econ_radius: 180, econ_hp: 0.5, econ_cubes: 10,
@@ -492,7 +492,7 @@ for (const m of enemies) {
 const prev = S.tracked.get(m.id), v = m.vel || [0, 0, 0]
 let ev = v
 if (prev && prev.src === "see" && prev.ev && t - prev.t < 0.5) { const k = P.vel_ema; ev = [prev.ev[0] * (1 - k) + v[0] * k, prev.ev[1] * (1 - k) + v[1] * k, v[2]] }
-S.tracked.set(m.id, { pos: m.pos, vel: v, ev, hp: m.hp ?? 1400, max_hp: m.max_hp ?? 1400, t, src: "see", aim: m.aim })
+S.tracked.set(m.id, { pos: m.pos, vel: v, ev, hp: m.hp ?? 1400, max_hp: m.max_hp ?? 1400, t, src: "see", aim: m.aim, weapons: m.weapons, cubes: m.cubes })
 }
 const me = obs.self.pos
 const dmap = { near: 40, mid: 110, far: 230 }
@@ -585,6 +585,9 @@ const d = hyp(target.pos[0] - cx, target.pos[1] - cy)
 let sc = -P.fr_range_w * Math.abs(d - pref) - 0.3 * r
 const los = world ? world.los([cx, cy, gz + 7], tc) : true
 sc += (los === wantLos) ? P.fr_los_w : 0
+if (P.fr_light_avoid && !me.weapons.some((w) => w && w.kind === "lightning")) {
+for (const e of [target, ...others]) if ((e.weapons || []).includes("lightning")) { const de = hyp(e.pos[0] - cx, e.pos[1] - cy); if (de < 58) sc -= (58 - de) * P.fr_light_avoid }
+}
 if (P.fr_flank_w) {
 const tb = Math.atan2(target.pos[1] - cy, target.pos[0] - cx)
 for (const e of others) if (Math.abs(angDiff(Math.atan2(e.pos[1] - cy, e.pos[0] - cx), tb)) > 1.75) sc -= P.fr_flank_w
@@ -815,7 +818,8 @@ for (const dr of (P.drops ? obs.drops || [] : [])) {
 const dd = dist2(dr.pos, pos)
 if (P.drop_heal) {
 const want = dd < P.drop_heal_r && (hpFrac < P.drop_heal_hp || dd < 90)
-const hot = enemies.some((m) => dist2(m.pos, dr.pos) < 35)
+const hostiles = enemies.filter((m) => dist2(m.pos, pos) < 160 && (!P.hostile_only || !S.squad || hostile(m, me, dist2(m.pos, pos)))).length
+const hot = enemies.some((m) => dist2(m.pos, dr.pos) < 35) || hostiles >= 2 || (target && P.short_retreat && losing(me, enemies, target, hpFrac))
 if (want && !hot && dr.lands_in < dd / 11 + 3) {
 if (dd < dr.radius - 1.5) {
 if (!S.capJit || t > S.capJitT) { const a = rnd() * Math.PI * 2, r = uni(0, dr.radius * 0.5); S.capJit = [dr.pos[0] + Math.cos(a) * r, dr.pos[1] + Math.sin(a) * r]; S.capJitT = t + uni(0.4, 0.9) }
