@@ -95,7 +95,26 @@ func (p *Pilot) theirDPS(c *Contact, d float64) float64 {
 		l.laser = false
 	}
 	_, theirs := p.gunCurves()
-	return p.dps(l, d, theirs)
+	return p.dps(l, d, theirs) * p.tierFactor()
+}
+
+// tierFactor scales a house bot's damage by its likely tier. The practice squad is 4 easy, 4 medium,
+// 4 hard and 3 expert bots that hunt us weakest first, so the number already dead tells us who is
+// coming now: fight the early easy hunters hard, pick fights against the late experts more carefully.
+func (p *Pilot) tierFactor() float64 {
+	if !p.T.SquadTiers || !p.practice() {
+		return 1
+	}
+	kills := 16 - p.o.Alive
+	switch {
+	case kills < 4:
+		return 0.6
+	case kills < 8:
+		return 0.8
+	case kills < 12:
+		return 1.0
+	}
+	return 1.2
 }
 
 // odds evaluates a fight with c at several ranges, paying for the trip to each, and returns the

@@ -57,6 +57,7 @@ type Tuning struct {
 	SquadKite        bool    // against the squad, with a laser, fight from SquadKiteMin..SquadKiteMax
 	SquadDamageFirst bool    // against the squad, take damage upgrades before defensive ones
 	SquadNoRetreat   bool    // against the squad, never break off a fight
+	SquadTiers       bool    // against the squad, weigh house bots by their likely tier (from how many are dead)
 	SquadKiteMin     float64
 	SquadKiteMax     float64
 
@@ -135,6 +136,7 @@ func Defaults() Tuning {
 		SquadRetreatHP:   0,
 		SquadDamageFirst: true,
 		SquadNoRetreat:   true,
+		SquadTiers:       true,
 		SquadReturnHP:    0.6,
 		SquadSwarmTTD:    4,
 		SquadDuelLeave:   0.35,
