@@ -30,7 +30,7 @@
    "mortar_velocity",
    "laser_pierce"
   ],
-  "laser_seek": 400,
+  "laser_seek": 450,
   "loot_radius": 110,
   "farm_npcs": true,
   "shoot_crates": true,
@@ -51,8 +51,8 @@
   "loot_threat_only": true,
   "weapon_seek": 160,
   "stray_safe": true,
-  "laser_run": 220,
-  "errand_clear": 40,
+  "laser_run": 320,
+  "errand_clear": 30,
   "fr_light_avoid": 3,
   "aim_top": false,
   "tac_reload": true
@@ -62,11 +62,11 @@
  "bdodge": true,
  "loot_threat_only": true,
  "weapon_seek": 160,
- "laser_seek": 400,
+ "laser_seek": 450,
  "hostile_only": true,
  "hostile_all": true,
- "laser_run": 220,
- "errand_clear": 40,
+ "laser_run": 320,
+ "errand_clear": 30,
  "aim_top": false,
  "tac_reload": true
 }
