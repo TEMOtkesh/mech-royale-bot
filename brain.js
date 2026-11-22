@@ -272,7 +272,7 @@ function mulberry(seed) {
 export function makeBot(hello, mapFiles, override = {}) {
   const P = { ...DEFAULTS, ...(STRATS[override.strategy || DEFAULTS.strategy] || {}), ...override }
   const cfg = hello.config
-  const rnd = mulberry(hello.seed || 1)
+  const rnd = mulberry(((hello.seed || 1) + 7919 * ((override && override.salt) || 0)) >>> 0)
   const uni = (a, b) => a + (b - a) * rnd()
   let world = null
   try { world = new World(mapFiles.world, mapFiles.terrain) } catch (e) { (P.log || (() => {}))("map fail " + e) }
