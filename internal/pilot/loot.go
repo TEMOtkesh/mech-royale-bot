@@ -183,17 +183,17 @@ var upgradeOrder = map[string]float64{
 	"plating": 1.00, "armor": 0.96, "lightning_efficiency": 0.92, "laser_damage": 0.91, "gun_rate": 0.90,
 	"gun_damage": 0.88, "lightning_range": 0.87, "laser_charge": 0.86, "gun_velocity": 0.80, "servos": 0.76,
 	"nanites": 0.72, "gun_mag": 0.60, "reactor": 0.50, "capacitor": 0.45, "mortar_splash": 0.45,
-	"mortar_reload": 0.42, "mortar_velocity": 0.40, "lightning_chain": 0.40, "sensors": 0.35,
+	"mortar_reload": 0.42, "mortar_velocity": 0.40, "lightning_chain": 0.40,
 	"gyros": 0.30, "jets": 0.30, "laser_pierce": 0.20,
 }
 
 // practiceUpgradeOrder: against the house squad, damage first. The squad comes one hunter after another, so
 // killing each one faster (drum magazine +31% sustained gun damage, lens +18% laser) beats taking 8% less damage.
 var practiceUpgradeOrder = map[string]float64{
-	"gun_mag": 1.00, "laser_damage": 0.98, "gun_damage": 0.96, "laser_charge": 0.94, "gun_rate": 0.93,
+	"gun_mag": 1.00, "laser_damage": 0.98, "sensors": 0.97, "gun_damage": 0.96, "laser_charge": 0.94, "gun_rate": 0.93,
 	"plating": 0.90, "armor": 0.88, "lightning_efficiency": 0.86, "lightning_range": 0.84, "gun_velocity": 0.80,
 	"servos": 0.76, "nanites": 0.72, "reactor": 0.50, "capacitor": 0.45, "mortar_splash": 0.45,
-	"mortar_reload": 0.42, "mortar_velocity": 0.40, "lightning_chain": 0.40, "sensors": 0.35,
+	"mortar_reload": 0.42, "mortar_velocity": 0.40, "lightning_chain": 0.40,
 	"gyros": 0.30, "jets": 0.30, "laser_pierce": 0.20,
 }
 

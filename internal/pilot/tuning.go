@@ -58,6 +58,8 @@ type Tuning struct {
 	SquadDamageFirst bool    // against the squad, take damage upgrades before defensive ones
 	SquadNoRetreat   bool    // against the squad, never break off a fight
 	SquadTiers       bool    // against the squad, weigh house bots by their likely tier (from how many are dead)
+	FFAClock         bool    // after the submission cutoff every match is a free-for-all
+	SquadLook        bool    // against the squad, sweep the torso around the nearest recently seen squad member
 	SquadKiteMin     float64
 	SquadKiteMax     float64
 
@@ -137,6 +139,8 @@ func Defaults() Tuning {
 		SquadDamageFirst: true,
 		SquadNoRetreat:   true,
 		SquadTiers:       true,
+		FFAClock:         true,
+		SquadLook:        true,
 		SquadReturnHP:    0.6,
 		SquadSwarmTTD:    4,
 		SquadDuelLeave:   0.35,

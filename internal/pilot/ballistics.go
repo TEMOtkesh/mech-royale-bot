@@ -232,6 +232,10 @@ func (p *Pilot) lookAround(cmd *wire.Command, heading float64, moving bool) {
 		yaw = p.hurtBearing
 	case p.now-p.soundT < 1.5:
 		yaw = p.soundBear
+	case p.T.SquadLook && p.practice() && p.squadBearingOK():
+		// hunters walk straight at us from where the squad was last seen: keep the 120-degree cone on them
+		p.scan += p.period
+		yaw = p.squadBear + 0.7*math.Sin(p.scan*2.2)
 	case moving:
 		p.scan += p.period
 		yaw = heading + 1.9*math.Sin(p.scan*1.3)
@@ -240,4 +244,23 @@ func (p *Pilot) lookAround(cmd *wire.Command, heading float64, moving bool) {
 		yaw += 0.35
 	}
 	cmd.Aim, cmd.AimSet = [2]float64{yaw, 0}, true
+}
+
+// squadBearingOK points squadBear at the nearest squad member seen in the last 20 s (practice only).
+func (p *Pilot) squadBearingOK() bool {
+	best, bd := -1.0, math.Inf(1)
+	for _, c := range p.contacts {
+		if c.Drone || p.now-c.SeenT > 20 || c.HP <= 0 {
+			continue
+		}
+		d := math.Hypot(c.Pos[0]-p.pos[0], c.Pos[1]-p.pos[1])
+		if d < bd && d > 1 {
+			bd, best = d, math.Atan2(c.Pos[1]-p.pos[1], c.Pos[0]-p.pos[0])
+		}
+	}
+	if best < -0.5 && math.IsInf(bd, 1) {
+		return false
+	}
+	p.squadBear = best
+	return !math.IsInf(bd, 1)
 }

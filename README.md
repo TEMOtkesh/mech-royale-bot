@@ -57,3 +57,6 @@ Changes, all limited to practice games against the house squad (free-for-all pla
 - `SquadRetreatHP` 0.2 → 0: no low-health retreat from the squad.
 - `SquadNoRetreat` (on)
 - `SquadTiers`: house bots are weighed by their likely tier (easy → expert) from how many are already dead.: never break off a fight against the squad.
+- `FFAClock`: after the submission cutoff every match is played as a free-for-all from the first tick.
+- `SquadLook`: between fights the torso sweeps around the nearest recently seen squad member, so hunters are spotted at 200 m.
+- Practice upgrade order: sensors (+25 m vision) right after drum magazine and lens: vision, not range, limits the laser.

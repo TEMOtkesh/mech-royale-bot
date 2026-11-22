@@ -1,5 +1,10 @@
 package pilot
 
+import "time"
+
+// ffaCutoff is the submission cutoff: every match after it is a final-round free-for-all.
+var ffaCutoff = time.Date(2026, 11, 22, 16, 0, 0, 0, time.UTC)
+
 // Lobby reading. Scored practice is us against a squad of house bots that cooperate and hunt us;
 // real matches are a free-for-all where the others also kill each other. Deaths we did not cause
 // give a free-for-all away. Until the opening is over we assume nothing and play carefully.
@@ -23,6 +28,9 @@ func (p *Pilot) noteHit(id int) {
 // readLobby updates the free-for-all evidence from the alive count.
 func (p *Pilot) readLobby() {
 	l := &p.lob
+	if !l.ffa && p.T.FFAClock && time.Now().After(ffaCutoff) {
+		l.ffa = true // the final rounds are free-for-alls: no need to wait for deaths we did not cause
+	}
 	total := int(p.cfg.Match.Get("mechs", 16))
 	dead := total - p.o.Alive
 	if dead <= l.deadSeen {
