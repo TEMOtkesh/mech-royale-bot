@@ -56,6 +56,7 @@ export const DEFAULTS = {
   hostile_only: false, hostile_ang: 0.2, hostile_near: 60, hostile_mem: 4,
   short_retreat: 0, lethal: false, lethal_k: 0.8,
   opp: false, opp_late: 4, opp_range: 130, fight_boost: false, aim_risk: 0, near_risk: 0,
+  laser_run: 0, errand_clear: 40,
   ammo_track: false, pick_mem: false, pick_mem_empty: 160, pick_mem_swap: 90,
   fightmove: false, fr_gun: 88, fr_laser: 115, fr_light: 28, fr_range_w: 1.0, fr_los_w: 40, fr_expose_w: 28, fr_strafe_w: 8, fr_aim_w: 0, ghost_fight: false, iso_press: 0, tgt_hpw: 90, tgt_low: 0, finish_fm: 0, tgt_need_los: false, finish_crowd: 0, finish_min_hp: 0.35, drops: true, grab_safe: false, slew_fire: false, self_lead: false, rear_guard: false, regen_hold: 0, final_hold: 0, ffa_late_alive: 0, ffa_late_override: null, ffa_early_t: 0, ffa_squad_need: 0, drop_heal: false, drop_heal_hp: 0.7, drop_heal_r: 220, fr_flank_w: 0, preaim: 0, ttk_rule: false, ttk_ratio: 0.8, ttk_live: false, fr_light_avoid: 0, vlead: false, loot_threat_only: false, hostile_all: false, stray_safe: false, stray_w: 6, overwatch: false, late_base_t: 0, late_override: null,
   overwhelm: 3, overwhelm_hp: 0.9,
@@ -938,6 +939,23 @@ export function makeBot(hello, mapFiles, override = {}) {
       }
     }
     const predator = P.strategy === "predator"
+    if (P.laser_run && !me.weapons.some((w) => w && w.kind === "laser")) {
+      // the laser decides the match: walk to a known laser even mid-fight (we keep shooting on the way),
+      // as long as the straight way there stays clear of every mech that is coming for us
+      const segD = (a, b, c) => { const vx = b[0] - a[0], vy = b[1] - a[1], L2 = vx * vx + vy * vy || 1; const u = Math.max(0, Math.min(1, ((c[0] - a[0]) * vx + (c[1] - a[1]) * vy) / L2)); return hyp(a[0] + vx * u - c[0], a[1] + vy * u - c[1]) }
+      const foes = enemies.filter((m) => !S.squad || hostile(m, me, dist2(m.pos, pos)))
+      const cands = []
+      for (const p of obs.pickups || []) if (p.kind === "laser" && Math.abs(p.pos[2] - pos[2]) < 4) cands.push(p.pos)
+      if (S.pickMem) for (const v of S.pickMem.values()) if (v.kind === "laser" && Math.abs(v.pos[2] - (world ? world.height(v.pos[0], v.pos[1]) : v.pos[2])) < 3) cands.push(v.pos)
+      let lp = null, ld = P.laser_run
+      for (const c of cands) {
+        const d = dist2(c, pos)
+        if (d >= ld) continue
+        if (foes.some((m) => segD(pos, c, m.pos) < P.errand_clear && dist2(m.pos, c) < dist2(pos, c) + 40)) continue
+        ld = d; lp = c
+      }
+      if (lp) return [[lp[0], lp[1]], "loot"]
+    }
     if (P.grab_cubes && !P.ghost && hpFrac > 0.5) {
       // kill drops: grab nearby cubes even mid-fight (+4% hp/dmg each, more upgrades)
       let best = null, bd = P.grab_cubes
