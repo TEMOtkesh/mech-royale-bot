@@ -7,16 +7,16 @@
  "slow_walk": true,
  "squad_override": {
   "upgrade_order": [
-   "gun_mag",
-   "laser_damage",
-   "gun_damage",
-   "laser_charge",
-   "gun_rate",
    "plating",
    "armor",
+   "laser_damage",
+   "laser_charge",
    "nanites",
+   "gun_damage",
+   "gun_rate",
    "lightning_efficiency",
    "lightning_range",
+   "gun_mag",
    "gyros",
    "servos",
    "capacitor",
@@ -53,15 +53,7 @@
   "stray_safe": true,
   "laser_run": 220,
   "errand_clear": 40,
-  "tac_reload": true,
-  "regen_hold": 0.7,
-  "fr_gun": 150,
-  "fr_laser": 170,
-  "fr_range_w": 2.0,
-  "fight_boost": true,
-  "tgt_laser": 60,
-  "las_peek": 1.01,
-  "seek": 0.7
+  "aim_top": true
  },
  "ffa_override": {},
  "overwhelm": 99,
@@ -73,5 +65,5 @@
  "hostile_all": true,
  "laser_run": 220,
  "errand_clear": 40,
- "tac_reload": true
+ "aim_top": true
 }

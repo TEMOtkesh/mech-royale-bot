@@ -56,7 +56,7 @@ export const DEFAULTS = {
   hostile_only: false, hostile_ang: 0.2, hostile_near: 60, hostile_mem: 4,
   short_retreat: 0, lethal: false, lethal_k: 0.8,
   opp: false, opp_late: 4, opp_range: 130, fight_boost: false, aim_risk: 0, near_risk: 0,
-  laser_run: 0, errand_clear: 40, blind_turn: 0, tgt_laser: 0, las_peek: 0, seek: 0, seek_range: 320,
+  laser_run: 0, errand_clear: 40, blind_turn: 0, tgt_laser: 0, las_peek: 0, seek: 0, seek_range: 320, aim_top: false,
   ammo_track: false, pick_mem: false, pick_mem_empty: 160, pick_mem_swap: 90,
   fightmove: false, fr_gun: 88, fr_laser: 115, fr_light: 28, fr_range_w: 1.0, fr_los_w: 40, fr_expose_w: 28, fr_strafe_w: 8, fr_aim_w: 0, ghost_fight: false, iso_press: 0, tgt_hpw: 90, tgt_low: 0, finish_fm: 0, tgt_need_los: false, finish_crowd: 0, finish_min_hp: 0.35, drops: true, grab_safe: false, slew_fire: false, self_lead: false, rear_guard: false, regen_hold: 0, final_hold: 0, ffa_late_alive: 0, ffa_late_override: null, ffa_early_t: 0, ffa_squad_need: 0, drop_heal: false, drop_heal_hp: 0.7, drop_heal_r: 220, fr_flank_w: 0, preaim: 0, ttk_rule: false, ttk_ratio: 0.8, ttk_live: false, fr_light_avoid: 0, vlead: false, loot_threat_only: false, hostile_all: false, stray_safe: false, stray_w: 6, overwatch: false, late_base_t: 0, late_override: null,
   overwhelm: 3, overwhelm_hp: 0.9,
@@ -1150,11 +1150,11 @@ export function makeBot(hello, mapFiles, override = {}) {
     return [move, jump, jet]
   }
 
-  function lead(me, tp, tv, speed, muzzle) {
+  function lead(me, tp, tv, speed, muzzle, hz = 4.5) {
     const L = P.aim_latency, mv = P.self_lead && me.vel ? me.vel : [0, 0, 0]
     // the shot leaves from where we will be when it fires, not where we are now
     const sx = me.pos[0] + mv[0] * L, sy = me.pos[1] + mv[1] * L, sz = me.pos[2] + muzzle
-    const tx = tp[0] + tv[0] * L, ty = tp[1] + tv[1] * L, tz = tp[2] + 4.5
+    const tx = tp[0] + tv[0] * L, ty = tp[1] + tv[1] * L, tz = tp[2] + hz
     // airborne targets fall: predict the arc (gravity) and stop at the ground, instead of damping vertical speed
     const g = cfg.mech.gravity || 22
     const ground = world ? world.height(tp[0], tp[1]) : tp[2]
@@ -1230,17 +1230,21 @@ export function makeBot(hello, mapFiles, override = {}) {
       let tvel = tgt.vel || [0, 0, 0]
       if (tkind === "mech" && P.vel_ema < 1) { const tr = S.tracked.get(tgt.id); if (tr && tr.ev) tvel = tr.ev }
       tvel = [tvel[0] * P.lead_k, tvel[1] * P.lead_k, tvel[2] * P.lead_k]
-      let [yaw, pitch, d] = lead(me, tgt.pos, tvel, gspeed, muzzle)
+      // a mech is a 9 m cylinder with no weak spot: aim at its middle, but when low cover hides the middle and the
+      // top still shows, aim at the top instead of holding fire (they can see and shoot us over the same wall)
+      let ahz = 4.5
+      if (P.aim_top && tkind === "mech" && world && !world.los(eye, [tgt.pos[0], tgt.pos[1], tgt.pos[2] + 4.5]) && world.los(eye, [tgt.pos[0], tgt.pos[1], tgt.pos[2] + 7.6])) ahz = 7.6
+      let [yaw, pitch, d] = lead(me, tgt.pos, tvel, gspeed, muzzle, ahz)
       if (tkind === "npc") pitch = Math.atan2(tgt.pos[2] + 1.7 - pos[2] - muzzle, dist2(tgt.pos, pos))
       aim = [yaw, pitch]
-      const clear = world ? world.los(eye, [tgt.pos[0], tgt.pos[1], tgt.pos[2] + (tkind === "mech" ? 4.5 : 1.7)]) : true
+      const clear = world ? world.los(eye, [tgt.pos[0], tgt.pos[1], tgt.pos[2] + (tkind === "mech" ? ahz : 1.7)]) : true
       // the torso turns (4 rad/s yaw, 3 rad/s pitch) before the shot leaves on the next physics tick,
       // so what matters is the aim error left after one tick of turning, not the error right now
       const slewY = P.slew_fire ? (me.stats.turn_rate || 4) * 0.05 : 0, slewP = P.slew_fire ? (me.stats.pitch_rate || 3) * 0.05 : 0
       const err = Math.max(0, Math.abs(angDiff(ay, yaw)) - slewY) + Math.max(0, Math.abs(ap - pitch) - slewP) * 0.5
       const tol = Math.max(0.012, Math.atan2(2, Math.max(d, 1)))
       // the laser is hitscan: aim at where the target is (plus one decision of motion), not at a lead point
-      const tv = tgt.vel || [0, 0, 0], hz = tkind === "mech" ? 4.5 : 1.7
+      const tv = tgt.vel || [0, 0, 0], hz = tkind === "mech" ? ahz : 1.7
       const lpnt = [tgt.pos[0] + tv[0] * 0.12, tgt.pos[1] + tv[1] * 0.12, tgt.pos[2] + hz]
       const lyaw = Math.atan2(lpnt[1] - pos[1], lpnt[0] - pos[0])
       const lpitch = Math.atan2(lpnt[2] - pos[2] - muzzle, hyp(lpnt[0] - pos[0], lpnt[1] - pos[1]))
