@@ -36,7 +36,7 @@
   "shoot_crates": true,
   "ghost": false,
   "slow_walk": false,
-  "finish": true,
+  "finish": false,
   "retreat_hp": 0,
   "recover_hp": 0,
   "peek_hide_hp": 0.3,
