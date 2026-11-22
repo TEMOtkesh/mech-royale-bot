@@ -53,7 +53,7 @@
   "stray_safe": true,
   "laser_run": 220,
   "errand_clear": 40,
-  "blind_turn": 150
+  "regen_hold": 0.7
  },
  "ffa_override": {},
  "overwhelm": 99,
@@ -64,6 +64,5 @@
  "hostile_only": true,
  "hostile_all": true,
  "laser_run": 220,
- "errand_clear": 40,
- "blind_turn": 150
+ "errand_clear": 40
 }
