@@ -39,7 +39,7 @@
   "finish": true,
   "retreat_hp": 0,
   "recover_hp": 0,
-  "peek_hide_hp": 0.3,
+  "peek_hide_hp": 0,
   "finish_hp": 0.5,
   "prey_fire_range": 260,
   "engage_range": 260,
@@ -50,8 +50,7 @@
   "lethal": true,
   "loot_threat_only": true,
   "weapon_seek": 160,
-  "stray_safe": true,
-  "overwatch": true
+  "stray_safe": true
  },
  "ffa_override": {},
  "overwhelm": 99,
