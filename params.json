@@ -51,8 +51,8 @@
   "loot_threat_only": true,
   "weapon_seek": 160,
   "stray_safe": true,
-  "fr_gun": 110,
-  "fr_laser": 140
+  "ttk_rule": true,
+  "ttk_live": true
  },
  "ffa_override": {},
  "overwhelm": 99,
