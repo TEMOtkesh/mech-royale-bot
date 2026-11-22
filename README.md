@@ -15,3 +15,7 @@ All code in `brain.js` is our own. Several behaviours were inspired by ideas oth
 - Laser kiting at long range only while holding a laser, gun lead learned per opponent: zoro (Specz04/zoro, MIT).
 - Charging the laser out of sight: andrew-zhouu/builders-mech-royale-2026 (MIT).
 - Selective targeting of only the hunters that come for us: youraverageguy-123/mechfight-bot.
+
+## Final rounds
+
+After the submission cutoff every match is a free-for-all, so from that moment (`ffa_clock`) the bot plays its free-for-all game from the first tick: avoid fights it did not start, move quietly, peek from cover, and play to win once four or fewer mechs are left (`ffa_late_alive`). Idea from andrew-zhouu/builders-mech-royale-2026 (clock gate at the cutoff).

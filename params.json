@@ -55,8 +55,7 @@
   "errand_clear": 30,
   "fr_light_avoid": 3,
   "aim_top": false,
-  "tac_reload": true,
-  "learn_lead": 8
+  "tac_reload": true
  },
  "ffa_override": {},
  "overwhelm": 99,
@@ -70,5 +69,10 @@
  "errand_clear": 30,
  "aim_top": false,
  "tac_reload": true,
- "learn_lead": 8
+ "ffa_clock": 1795363200000,
+ "ffa_late_alive": 4,
+ "ffa_late_override": {
+  "ghost": false,
+  "slow_walk": false
+ }
 }
