@@ -60,6 +60,7 @@
   "fr_range_w": 2.0,
   "fight_boost": true,
   "tgt_laser": 60,
+  "las_peek": 1.01,
   "seek": 0.7
  },
  "ffa_override": {},
