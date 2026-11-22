@@ -18,4 +18,4 @@ All code in `brain.js` is our own. Several behaviours were inspired by ideas oth
 
 ## Final rounds
 
-After the submission cutoff every match is a free-for-all, so from that moment (`ffa_clock`) the bot plays its free-for-all game from the first tick: avoid fights it did not start, move quietly, peek from cover, and play to win once four or fewer mechs are left (`ffa_late_alive`). Idea from andrew-zhouu/builders-mech-royale-2026 (clock gate at the cutoff).
+After the submission cutoff every match is a free-for-all, so from that moment (`ffa_clock`) the bot plays its free-for-all game from the first tick: avoid fights it did not start, move quietly, peek from cover, and play to win once four or fewer mechs are left (`ffa_late_alive`) or after 240 s (`ffa_late_t`). Idea from andrew-zhouu/builders-mech-royale-2026 (clock gate at the cutoff).

@@ -74,5 +74,6 @@
  "ffa_late_override": {
   "ghost": false,
   "slow_walk": false
- }
+ },
+ "ffa_late_t": 240
 }
