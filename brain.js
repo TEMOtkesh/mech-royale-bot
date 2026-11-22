@@ -56,7 +56,7 @@ export const DEFAULTS = {
   hostile_only: false, hostile_ang: 0.2, hostile_near: 60, hostile_mem: 4,
   short_retreat: 0, lethal: false, lethal_k: 0.8,
   opp: false, opp_late: 4, opp_range: 130, fight_boost: false, aim_risk: 0, near_risk: 0,
-  laser_run: 0, errand_clear: 40, blind_turn: 0,
+  laser_run: 0, errand_clear: 40, blind_turn: 0, tgt_laser: 0,
   ammo_track: false, pick_mem: false, pick_mem_empty: 160, pick_mem_swap: 90,
   fightmove: false, fr_gun: 88, fr_laser: 115, fr_light: 28, fr_range_w: 1.0, fr_los_w: 40, fr_expose_w: 28, fr_strafe_w: 8, fr_aim_w: 0, ghost_fight: false, iso_press: 0, tgt_hpw: 90, tgt_low: 0, finish_fm: 0, tgt_need_los: false, finish_crowd: 0, finish_min_hp: 0.35, drops: true, grab_safe: false, slew_fire: false, self_lead: false, rear_guard: false, regen_hold: 0, final_hold: 0, ffa_late_alive: 0, ffa_late_override: null, ffa_early_t: 0, ffa_squad_need: 0, drop_heal: false, drop_heal_hp: 0.7, drop_heal_r: 220, fr_flank_w: 0, preaim: 0, ttk_rule: false, ttk_ratio: 0.8, ttk_live: false, fr_light_avoid: 0, vlead: false, loot_threat_only: false, hostile_all: false, stray_safe: false, stray_w: 6, overwatch: false, late_base_t: 0, late_override: null,
   overwhelm: 3, overwhelm_hp: 0.9,
@@ -447,6 +447,7 @@ export function makeBot(hello, mapFiles, override = {}) {
       if (S.threats.has(m.id)) s -= 60
       const mine = me.weapons.filter(Boolean).map((w) => w.kind), theirs = m.weapons || []
       if (mine.includes("laser") && theirs.includes("mortar")) s -= 40      // cook-off +60%
+      if (P.tgt_laser && !mine.includes("laser") && theirs.includes("laser")) s -= P.tgt_laser  // its laser drops when it dies
       if (mine.includes("lightning") && theirs.includes("laser") && d < 50) s -= 40  // short their laser
       if (world && !world.los([me.pos[0], me.pos[1], me.pos[2] + 7], [m.pos[0], m.pos[1], m.pos[2] + 4.5])) { if (P.tgt_need_los && m.id !== S.targetId) continue; s += 120 }
       if (s < bs) { bs = s; best = m }
