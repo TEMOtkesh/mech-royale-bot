@@ -57,7 +57,7 @@ export const DEFAULTS = {
   short_retreat: 0, lethal: false, lethal_k: 0.8,
   opp: false, opp_late: 4, opp_range: 130, fight_boost: false, aim_risk: 0, near_risk: 0,
   ammo_track: false, pick_mem: false, pick_mem_empty: 160, pick_mem_swap: 90,
-  fightmove: false, fr_gun: 88, fr_laser: 115, fr_light: 28, fr_range_w: 1.0, fr_los_w: 40, fr_expose_w: 28, fr_strafe_w: 8, fr_aim_w: 0, ghost_fight: false, iso_press: 0, tgt_hpw: 90, tgt_low: 0, finish_fm: 0, tgt_need_los: false, finish_crowd: 0, finish_min_hp: 0.35, drops: true, grab_safe: false, late_base_t: 0, late_override: null,
+  fightmove: false, fr_gun: 88, fr_laser: 115, fr_light: 28, fr_range_w: 1.0, fr_los_w: 40, fr_expose_w: 28, fr_strafe_w: 8, fr_aim_w: 0, ghost_fight: false, iso_press: 0, tgt_hpw: 90, tgt_low: 0, finish_fm: 0, tgt_need_los: false, finish_crowd: 0, finish_min_hp: 0.35, drops: true, grab_safe: false, slew_fire: false, self_lead: false, late_base_t: 0, late_override: null,
   overwhelm: 3, overwhelm_hp: 0.9,
   fortress: false, fort_open: 5, fort_arms: 1, fort_after: 60,
   econ: false, econ_radius: 180, econ_hp: 0.5, econ_cubes: 10,
@@ -970,8 +970,9 @@ export function makeBot(hello, mapFiles, override = {}) {
   }
 
   function lead(me, tp, tv, speed, muzzle) {
-    const sx = me.pos[0], sy = me.pos[1], sz = me.pos[2] + muzzle
-    const L = P.aim_latency
+    const L = P.aim_latency, mv = P.self_lead && me.vel ? me.vel : [0, 0, 0]
+    // the shot leaves from where we will be when it fires, not where we are now
+    const sx = me.pos[0] + mv[0] * L, sy = me.pos[1] + mv[1] * L, sz = me.pos[2] + muzzle
     const tx = tp[0] + tv[0] * L, ty = tp[1] + tv[1] * L, tz = tp[2] + 4.5
     let tt = 0
     for (let i = 0; i < 3; i++) tt = hyp(tx + tv[0] * tt - sx, ty + tv[1] * tt - sy, tz + tv[2] * 0.3 * tt - sz) / speed
@@ -1011,14 +1012,17 @@ export function makeBot(hello, mapFiles, override = {}) {
       if (tkind === "npc") pitch = Math.atan2(tgt.pos[2] + 1.7 - pos[2] - muzzle, dist2(tgt.pos, pos))
       aim = [yaw, pitch]
       const clear = world ? world.los(eye, [tgt.pos[0], tgt.pos[1], tgt.pos[2] + (tkind === "mech" ? 4.5 : 1.7)]) : true
-      const err = Math.abs(angDiff(ay, yaw)) + Math.abs(ap - pitch) * 0.5
+      // the torso turns (4 rad/s yaw, 3 rad/s pitch) before the shot leaves on the next physics tick,
+      // so what matters is the aim error left after one tick of turning, not the error right now
+      const slewY = P.slew_fire ? (me.stats.turn_rate || 4) * 0.05 : 0, slewP = P.slew_fire ? (me.stats.pitch_rate || 3) * 0.05 : 0
+      const err = Math.max(0, Math.abs(angDiff(ay, yaw)) - slewY) + Math.max(0, Math.abs(ap - pitch) - slewP) * 0.5
       const tol = Math.max(0.012, Math.atan2(2, Math.max(d, 1)))
       // the laser is hitscan: aim at where the target is (plus one decision of motion), not at a lead point
       const tv = tgt.vel || [0, 0, 0], hz = tkind === "mech" ? 4.5 : 1.7
       const lpnt = [tgt.pos[0] + tv[0] * 0.12, tgt.pos[1] + tv[1] * 0.12, tgt.pos[2] + hz]
       const lyaw = Math.atan2(lpnt[1] - pos[1], lpnt[0] - pos[0])
       const lpitch = Math.atan2(lpnt[2] - pos[2] - muzzle, hyp(lpnt[0] - pos[0], lpnt[1] - pos[1]))
-      const lerr = Math.abs(angDiff(ay, lyaw)) + Math.abs(ap - lpitch) * 0.5
+      const lerr = Math.max(0, Math.abs(angDiff(ay, lyaw)) - slewY) + Math.max(0, Math.abs(ap - lpitch) - slewP) * 0.5
       const ltol = Math.max(0.008, Math.atan2(1.8, Math.max(d, 1)))
       const lw = weapons.find((w) => w && w.kind === "laser")
       if (P.laser_direct && lw && (lw.charge || 0) >= lw.stats.charge * 0.5) aim = [lyaw, lpitch]
