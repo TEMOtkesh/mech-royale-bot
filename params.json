@@ -8,10 +8,10 @@
  "squad_override": {
   "upgrade_order": [
    "plating",
-   "nanites",
    "armor",
    "laser_damage",
    "laser_charge",
+   "nanites",
    "gun_damage",
    "gun_rate",
    "lightning_efficiency",
@@ -43,7 +43,7 @@
   "finish_hp": 0.5,
   "prey_fire_range": 260,
   "engage_range": 260,
-  "grab_cubes": 40,
+  "grab_cubes": 70,
   "fightmove": true,
   "hostile_only": true,
   "short_retreat": 0,
