@@ -39,7 +39,7 @@
   "finish": true,
   "retreat_hp": 0,
   "recover_hp": 0,
-  "peek_hide_hp": 0,
+  "peek_hide_hp": 0.3,
   "finish_hp": 0.5,
   "prey_fire_range": 260,
   "engage_range": 260,
@@ -53,7 +53,7 @@
   "stray_safe": true,
   "laser_run": 220,
   "errand_clear": 40,
-  "fr_light_avoid": 3
+  "blind_turn": 150
  },
  "ffa_override": {},
  "overwhelm": 99,
@@ -64,5 +64,6 @@
  "hostile_only": true,
  "hostile_all": true,
  "laser_run": 220,
- "errand_clear": 40
+ "errand_clear": 40,
+ "blind_turn": 150
 }
