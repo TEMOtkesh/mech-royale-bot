@@ -33,6 +33,7 @@ Noise from a small behaviour change is about ±0.15; an identical commit re-scor
 | q1laskite | + long range with laser only (160) | m2 | queued | |
 | q2laskiteW | + q1 with stronger range keeping | m2 | queued | |
 | q3lead | + gun lead learned per opponent | m2 | queued | |
+| **F1** | m2allX + free-for-all from the first tick after the cutoff, fight to win at ≤4 left or 240 s | m2 | queued | **own final candidate** |
 
 ## zoro line (branch `zoro`; Specz04/zoro, MIT, credited)
 
@@ -43,11 +44,12 @@ Noise from a small behaviour change is about ±0.15; an identical commit re-scor
 | Z5 | + hunt at smaller advantage (0.7) | Z2 | 5.79 | ❌ |
 | Z6 | + hunt further out (240/260) | Z2 | 5.86 | ❌ |
 | Z10 | + laser first harder (LaserValue 9, LaserSprint 60) | Z2 | 5.84 | ❌ |
-| Z11 | + hunt only nearby (SquadHunt 80 / laser 100) | Z2 | queued 17:48 | |
-| Z12 | + hunt only with a clear advantage (SquadEngage 1.3) | Z2 | queued | |
-| Z7 | + no fight seeking | Z2 | queued | |
-| Z8 | + wider cube economy (LootRadius 300, WantCubes 15) | Z2 | queued | |
-| Z9 | + no long-range kiting vs squad | Z2 | queued | |
+| Z13 | + tier-aware house-bot odds (easy ×0.6 … expert ×1.2 by kill count) | Z2 | 6.04 | ✅ ties Z2 → new base |
+| Z14 | + hunt only nearby (80/100 m) | Z13 | queued 18:21 | |
+| Z18 | + free-for-all from the first tick after the cutoff (practice = Z13) | Z13 | queued | safety-net final |
+| Z15 | + no fight seeking | Z13 | queued | |
+| Z16 | + wider cube economy | Z13 | queued | |
+| Z17 | + no kiting vs squad | Z13 | queued | |
 
 ## Lessons
 
