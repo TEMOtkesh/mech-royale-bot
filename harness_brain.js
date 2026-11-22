@@ -53,7 +53,7 @@ hostile_only: false, hostile_ang: 0.2, hostile_near: 60, hostile_mem: 4,
 short_retreat: 0, lethal: false, lethal_k: 0.8,
 opp: false, opp_late: 4, opp_range: 130, fight_boost: false, aim_risk: 0, near_risk: 0,
 ammo_track: false, pick_mem: false, pick_mem_empty: 160, pick_mem_swap: 90,
-fightmove: false, fr_gun: 88, fr_laser: 115, fr_light: 28, fr_range_w: 1.0, fr_los_w: 40, fr_expose_w: 28, fr_strafe_w: 8, fr_aim_w: 0, ghost_fight: false, iso_press: 0, tgt_hpw: 90, tgt_low: 0, finish_fm: 0, tgt_need_los: false, finish_crowd: 0, finish_min_hp: 0.35, drops: true, grab_safe: false, slew_fire: false, self_lead: false, rear_guard: false, regen_hold: 0, final_hold: 0, ffa_late_alive: 0, ffa_late_override: null, ffa_early_t: 0, ffa_squad_need: 0, drop_heal: false, drop_heal_hp: 0.7, drop_heal_r: 220, fr_flank_w: 0, preaim: 0, ttk_rule: false, ttk_ratio: 0.8, ttk_live: false, fr_light_avoid: 0, late_base_t: 0, late_override: null,
+fightmove: false, fr_gun: 88, fr_laser: 115, fr_light: 28, fr_range_w: 1.0, fr_los_w: 40, fr_expose_w: 28, fr_strafe_w: 8, fr_aim_w: 0, ghost_fight: false, iso_press: 0, tgt_hpw: 90, tgt_low: 0, finish_fm: 0, tgt_need_los: false, finish_crowd: 0, finish_min_hp: 0.35, drops: true, grab_safe: false, slew_fire: false, self_lead: false, rear_guard: false, regen_hold: 0, final_hold: 0, ffa_late_alive: 0, ffa_late_override: null, ffa_early_t: 0, ffa_squad_need: 0, drop_heal: false, drop_heal_hp: 0.7, drop_heal_r: 220, fr_flank_w: 0, preaim: 0, ttk_rule: false, ttk_ratio: 0.8, ttk_live: false, fr_light_avoid: 0, vlead: false, late_base_t: 0, late_override: null,
 overwhelm: 3, overwhelm_hp: 0.9,
 fortress: false, fort_open: 5, fort_arms: 1, fort_after: 60,
 econ: false, econ_radius: 180, econ_hp: 0.5, econ_cubes: 10,
@@ -1004,9 +1004,18 @@ function lead(me, tp, tv, speed, muzzle) {
 const L = P.aim_latency, mv = P.self_lead && me.vel ? me.vel : [0, 0, 0]
 const sx = me.pos[0] + mv[0] * L, sy = me.pos[1] + mv[1] * L, sz = me.pos[2] + muzzle
 const tx = tp[0] + tv[0] * L, ty = tp[1] + tv[1] * L, tz = tp[2] + 4.5
+const g = cfg.mech.gravity || 22
+const ground = world ? world.height(tp[0], tp[1]) : tp[2]
+const air = P.vlead && (tp[2] > ground + 0.6 || Math.abs(tv[2]) > 1.5)
+const zAt = (tt) => {
+if (!air) return tz + tv[2] * 0.3 * tt
+let z = tp[2] + tv[2] * tt - 0.5 * g * tt * tt
+const gz = world ? world.height(tp[0] + tv[0] * tt, tp[1] + tv[1] * tt) : ground
+return Math.max(z, gz) + 4.5
+}
 let tt = 0
-for (let i = 0; i < 3; i++) tt = hyp(tx + tv[0] * tt - sx, ty + tv[1] * tt - sy, tz + tv[2] * 0.3 * tt - sz) / speed
-const px = tx + tv[0] * tt, py = ty + tv[1] * tt, pz = tz + tv[2] * 0.3 * tt
+for (let i = 0; i < 3; i++) tt = hyp(tx + tv[0] * tt - sx, ty + tv[1] * tt - sy, zAt(tt) - sz) / speed
+const px = tx + tv[0] * tt, py = ty + tv[1] * tt, pz = zAt(tt)
 return [Math.atan2(py - sy, px - sx), Math.atan2(pz - sz, hyp(px - sx, py - sy)), hyp(px - sx, py - sy, pz - sz)]
 }
 function mortarPitch(d, dh, v, g) {
