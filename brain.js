@@ -57,7 +57,7 @@ export const DEFAULTS = {
   short_retreat: 0, lethal: false, lethal_k: 0.8,
   opp: false, opp_late: 4, opp_range: 130, fight_boost: false, aim_risk: 0, near_risk: 0,
   ammo_track: false, pick_mem: false, pick_mem_empty: 160, pick_mem_swap: 90,
-  fightmove: false, fr_gun: 88, fr_laser: 115, fr_light: 28, fr_range_w: 1.0, fr_los_w: 40, fr_expose_w: 28, fr_strafe_w: 8, fr_aim_w: 0, ghost_fight: false, iso_press: 0, tgt_hpw: 90, tgt_low: 0, finish_fm: 0, tgt_need_los: false, finish_crowd: 0, finish_min_hp: 0.35, drops: true, grab_safe: false, slew_fire: false, self_lead: false, rear_guard: false, regen_hold: 0, final_hold: 0, ffa_late_alive: 0, ffa_late_override: null, ffa_early_t: 0, ffa_squad_need: 0, drop_heal: false, drop_heal_hp: 0.7, drop_heal_r: 220, late_base_t: 0, late_override: null,
+  fightmove: false, fr_gun: 88, fr_laser: 115, fr_light: 28, fr_range_w: 1.0, fr_los_w: 40, fr_expose_w: 28, fr_strafe_w: 8, fr_aim_w: 0, ghost_fight: false, iso_press: 0, tgt_hpw: 90, tgt_low: 0, finish_fm: 0, tgt_need_los: false, finish_crowd: 0, finish_min_hp: 0.35, drops: true, grab_safe: false, slew_fire: false, self_lead: false, rear_guard: false, regen_hold: 0, final_hold: 0, ffa_late_alive: 0, ffa_late_override: null, ffa_early_t: 0, ffa_squad_need: 0, drop_heal: false, drop_heal_hp: 0.7, drop_heal_r: 220, fr_flank_w: 0, preaim: 0, ttk_rule: false, ttk_ratio: 0.8, late_base_t: 0, late_override: null,
   overwhelm: 3, overwhelm_hp: 0.9,
   fortress: false, fort_open: 5, fort_arms: 1, fort_after: 60,
   econ: false, econ_radius: 180, econ_hp: 0.5, econ_cubes: 10,
@@ -365,7 +365,47 @@ export function makeBot(hello, mapFiles, override = {}) {
     return false
   }
 
+  function gunAcc(d) { return d < 60 ? 0.78 : d < 120 ? 0.58 : 0.4 }
+  function theirAcc(d) { return d < 40 ? 0.85 : d < 80 ? 0.65 : d < 120 ? 0.55 : 0.3 }
+  function myDps(me, d) {
+    const mult = 1 + 0.04 * Math.min(me.cubes || 0, 10)
+    let dps = 0
+    for (const w of me.weapons) {
+      if (!w) continue
+      if (w.kind === "gun" && d < 230) dps += w.stats.damage / w.stats.cooldown * gunAcc(d) * 0.55
+      if (w.kind === "laser" && d < 280) dps += w.stats.damage / (w.stats.charge + w.stats.cooldown) * 0.75
+      if (w.kind === "lightning" && d < 45) dps += w.stats.damage / w.stats.cooldown * 0.9
+    }
+    return dps * mult
+  }
+  function theirDps(m, d) {
+    const ws = m.weapons || ["gun"], mult = 1 + 0.04 * Math.min(m.cubes || 0, 10)
+    let dps = d < 230 ? 45 / 0.24 * theirAcc(d) * 0.55 : 0
+    if (ws.includes("laser") && d < 280) dps += 315 / 2.4 * 0.6
+    if (ws.includes("lightning") && d < 45) dps += 240 * 0.8
+    return dps * mult
+  }
+  function ttkLosing(me, enemies, target) {
+    // compare how long we need to kill the target with how long the mechs on us need to kill us
+    if (!target) return false
+    const d = dist2(target.pos, me.pos)
+    const tFrac = (target.hp ?? 1400) / Math.max(1, target.max_hp ?? 1400)
+    if (tFrac < 0.25) return false
+    const ours = (target.hp ?? 1400) / Math.max(1, myDps(me, d))
+    let inc = 0
+    for (const m of enemies) {
+      const dm = dist2(m.pos, me.pos); if (dm > 230) continue
+      const th = S.threats.get(m.id)
+      const aimed = m.aim && Math.abs(angDiff(m.aim[0], Math.atan2(me.pos[1] - m.pos[1], me.pos[0] - m.pos[0]))) < 0.3
+      if (m.id === target.id || aimed || (th && S.T - th[0] < 3)) inc += theirDps(m, dm)
+    }
+    const theirs = me.hp / Math.max(1, inc)
+    S.ttk = [ours, theirs]
+    return theirs < ours * P.ttk_ratio
+  }
+
   function losing(me, enemies, target, hpFrac) {
+    if (P.ttk_rule) return ttkLosing(me, enemies, target)
     // short retreat signal: outnumbered while hurt, or clearly out-traded by the one we're fighting
     const near = enemies.filter((m) => dist2(m.pos, me.pos) < 160).length
     let lose = (near >= 2 && hpFrac < 0.55) || (near >= 3 && hpFrac < 0.8)
@@ -578,6 +618,11 @@ export function makeBot(hello, mapFiles, override = {}) {
       let sc = -P.fr_range_w * Math.abs(d - pref) - 0.3 * r
       const los = world ? world.los([cx, cy, gz + 7], tc) : true
       sc += (los === wantLos) ? P.fr_los_w : 0
+      if (P.fr_flank_w) {
+        // keep every threat inside our front arc: a spot that puts one enemy on each side of us invites rear hits (x1.5)
+        const tb = Math.atan2(target.pos[1] - cy, target.pos[0] - cx)
+        for (const e of others) if (Math.abs(angDiff(Math.atan2(e.pos[1] - cy, e.pos[0] - cx), tb)) > 1.75) sc -= P.fr_flank_w
+      }
       for (const e of others) {
         if (!world || world.los([e.pos[0], e.pos[1], e.pos[2] + 8], [cx, cy, gz + 5])) {
           sc -= P.fr_expose_w
@@ -1118,7 +1163,15 @@ export function makeBot(hello, mapFiles, override = {}) {
     } else {
       const t = obs.t
       const snd = (obs.sounds || []).filter((s) => ["gun", "laser", "laser_charge", "lightning", "step", "boost", "mortar", "jet"].includes(s.kind))
-      if (t - S.lastDamagedT < 4 && S.lastDamageBearing != null) aim = [S.lastDamageBearing, 0]
+      let pre = null
+      if (P.preaim) {
+        // crosshair placement: keep the gun on where the nearest known enemy will reappear
+        let bd = 1e9
+        for (const v of S.tracked.values()) { if (v.src !== "see" || t - v.t > P.preaim) continue; const d = dist2(v.pos, pos); if (d < bd && d < 230) { bd = d; pre = v } }
+      }
+      if (t - S.lastDamagedT < 1.5 && S.lastDamageBearing != null) aim = [S.lastDamageBearing, 0]
+      else if (pre) { const pv = pre.ev || pre.vel || [0, 0, 0], k = Math.min(1.5, t - pre.t); const px = pre.pos[0] + pv[0] * k, py = pre.pos[1] + pv[1] * k; aim = [Math.atan2(py - pos[1], px - pos[0]), Math.atan2(pre.pos[2] + 4.5 - pos[2] - muzzle, Math.max(1, hyp(px - pos[0], py - pos[1])))] }
+      else if (t - S.lastDamagedT < 4 && S.lastDamageBearing != null) aim = [S.lastDamageBearing, 0]
       else if (mode === "fort" && S.fortDir != null && dist2([S.fort.x, S.fort.y], pos) < 6 && !snd.some((x) => x.dist === "near")) aim = [S.fortDir + Math.sin(t * 0.7) * 0.5, 0]
       else if (snd.length) { const r = { near: 0, mid: 1, far: 2 }; snd.sort((a, b) => r[a.dist] - r[b.dist]); aim = [snd[0].bearing, 0] }
       else {
