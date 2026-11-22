@@ -57,7 +57,7 @@ export const DEFAULTS = {
   short_retreat: 0, lethal: false, lethal_k: 0.8,
   opp: false, opp_late: 4, opp_range: 130, fight_boost: false, aim_risk: 0, near_risk: 0,
   ammo_track: false, pick_mem: false, pick_mem_empty: 160, pick_mem_swap: 90,
-  fightmove: false, fr_gun: 88, fr_laser: 115, fr_light: 28, fr_range_w: 1.0, fr_los_w: 40, fr_expose_w: 28, fr_strafe_w: 8, fr_aim_w: 0, ghost_fight: false, iso_press: 0, tgt_hpw: 90, tgt_low: 0, finish_fm: 0, tgt_need_los: false, finish_crowd: 0, finish_min_hp: 0.35, drops: true, grab_safe: false, slew_fire: false, self_lead: false, rear_guard: false, regen_hold: 0, final_hold: 0, ffa_late_alive: 0, ffa_late_override: null, ffa_early_t: 0, ffa_squad_need: 0, drop_heal: false, drop_heal_hp: 0.7, drop_heal_r: 220, fr_flank_w: 0, preaim: 0, ttk_rule: false, ttk_ratio: 0.8, ttk_live: false, fr_light_avoid: 0, vlead: false, loot_threat_only: false, hostile_all: false, stray_safe: false, stray_w: 6, overwatch: false, late_base_t: 0, late_override: null,
+  fightmove: false, fr_gun: 88, fr_laser: 115, fr_light: 28, fr_range_w: 1.0, fr_los_w: 40, fr_expose_w: 28, fr_strafe_w: 8, fr_aim_w: 0, ghost_fight: false, iso_press: 0, tgt_hpw: 90, tgt_low: 0, finish_fm: 0, tgt_need_los: false, finish_crowd: 0, finish_min_hp: 0.35, drops: true, grab_safe: false, slew_fire: false, self_lead: false, rear_guard: false, regen_hold: 0, final_hold: 0, ffa_late_alive: 0, ffa_late_override: null, ffa_early_t: 0, ffa_squad_need: 0, drop_heal: false, drop_heal_hp: 0.7, drop_heal_r: 220, fr_flank_w: 0, preaim: 0, ttk_rule: false, ttk_ratio: 0.8, ttk_live: false, fr_light_avoid: 0, vlead: false, loot_threat_only: false, hostile_all: false, late_base_t: 0, late_override: null,
   overwhelm: 3, overwhelm_hp: 0.9,
   fortress: false, fort_open: 5, fort_arms: 1, fort_after: 60,
   econ: false, econ_radius: 180, econ_hp: 0.5, econ_cubes: 10,
@@ -664,40 +664,6 @@ export function makeBot(hello, mapFiles, override = {}) {
     return best || [pos[0], pos[1]]
   }
 
-  function threatBearing(obs, me) {
-    // where the next hunter will come from: the recent squad positions we know about, else the last hit, else the zone
-    const t = obs.t, pos = me.pos
-    let sx = 0, sy = 0, n = 0
-    for (const v of S.tracked.values()) if (t - v.t < 30) { const w = 1 / (1 + (t - v.t)); sx += (v.pos[0] - pos[0]) * w; sy += (v.pos[1] - pos[1]) * w; n += w }
-    if (n > 0 && hyp(sx, sy) > 1) return Math.atan2(sy, sx)
-    if (S.lastDamageBearing != null) return S.lastDamageBearing
-    const z = obs.zone.next_center; return Math.atan2(z[1] - pos[1], z[0] - pos[0])
-  }
-
-  function overwatchPoint(obs, me) {
-    // a spot with a long sightline toward where hunters come from and walls everywhere else: they walk into our fire first
-    const t = obs.t, pos = me.pos, z = obs.zone
-    if (S.ow && t < S.owUntil && dist2(S.ow, pos) < 90 && hyp(S.ow[0] - z.next_center[0], S.ow[1] - z.next_center[1]) < z.next_radius * 0.85) return S.ow
-    const tb = threatBearing(obs, me)
-    let best = null, bs = -1e18
-    for (const r of [0, 15, 30, 45, 60]) for (let k = 0; k < (r ? 8 : 1); k++) {
-      const a = k * Math.PI / 4 + uni(-0.3, 0.3), x = pos[0] + Math.cos(a) * r, y = pos[1] + Math.sin(a) * r
-      if (world && world.blockedAt(x, y)) continue
-      if (hyp(x - z.next_center[0], y - z.next_center[1]) > z.next_radius * 0.8) continue
-      let front = 0, fn = 0, back = 0, bn = 0
-      for (let q = 0; q < 16; q++) {
-        const qa = q * Math.PI / 8, c = Math.cos(qa), sn = Math.sin(qa)
-        let d = 6
-        if (world) for (; d < 200; d += 6) if (world.blockedAt(x + c * d, y + sn * d)) break
-        if (Math.abs(angDiff(qa, tb)) < 0.7) { front += d; fn++ } else { back += d; bn++ }
-      }
-      const sc = (fn ? front / fn : 0) - 0.6 * (bn ? back / bn : 0) - 0.4 * r
-      if (sc > bs) { bs = sc; best = [x, y] }
-    }
-    S.ow = best || [pos[0], pos[1]]; S.owUntil = t + 20; S.owBearing = tb
-    return S.ow
-  }
-
   function riskPoint(obs, me, target) {
     const t = obs.t, pos = me.pos
     if (S.rp && t < S.rpUntil && dist2(S.rp, pos) > 3) return S.rp
@@ -1020,7 +986,6 @@ export function makeBot(hello, mapFiles, override = {}) {
       return [S.recoverAt, "recover"]
     }
     S.recoverAt = null
-    if (P.overwatch && world && S.squad) return [overwatchPoint(obs, me), "watch"]
     if (P.fortress && world && !P.ghost) { const fg = fortGoal(obs, me); if (fg) return fg }
     if (known(t, 6).length && P.drift) return [riskPoint(obs, me, null), "drift"]
     return [zg || [pos[0], pos[1]], "idle"]
@@ -1142,36 +1107,7 @@ export function makeBot(hello, mapFiles, override = {}) {
     return Math.atan((v2 - Math.sqrt(disc)) / (g * d))
   }
 
-  function passive(m) {
-    // a practice squad member that is not coming for us: hitting it by accident turns it into one more hunter
-    if (!S.squad || !P.hostile_only) return false
-    return !hostile(m, obs_me_cache, dist2(m.pos, obs_me_cache.pos))
-  }
-  let obs_me_cache = null
-  function strayRisk(obs, me, tgt, yaw) {
-    // a missed round flies on for up to 230 m: hold fire if a passive mech sits close to the line behind the target
-    const ux = Math.cos(yaw), uy = Math.sin(yaw), dt = dist2(tgt.pos, me.pos)
-    for (const m of obs.mechs) {
-      if (m.kind !== "mech" || m.id === tgt.id || !passive(m)) continue
-      const rx = m.pos[0] - me.pos[0], ry = m.pos[1] - me.pos[1], along = rx * ux + ry * uy
-      if (along < dt - 5 || along > 235) continue
-      if (Math.abs(-uy * rx + ux * ry) < P.stray_w) return true
-    }
-    return false
-  }
-  function lightningRisk(obs, me, tgt, ay, st) {
-    // lightning hits the NEAREST target in its cone and chains: never let that be a passive squad member
-    const cone = st.cone_deg * Math.PI / 180 / 2, dt = dist3(tgt.pos, me.pos)
-    for (const m of obs.mechs) {
-      if (m.kind !== "mech" || m.id === tgt.id || !passive(m)) continue
-      const d = dist3(m.pos, me.pos)
-      if (d < st.range && (d < dt || dist2(m.pos, tgt.pos) < (st.chain_range || 14)) && Math.abs(angDiff(Math.atan2(m.pos[1] - me.pos[1], m.pos[0] - me.pos[0]), ay)) < cone + 0.1) return true
-    }
-    return false
-  }
-
   function aimAndFire(obs, me, target, npcs, act, mode) {
-    obs_me_cache = me
     const pos = me.pos, stats = me.stats, muzzle = stats.muzzle_height || 7, weapons = me.weapons
     const fire = [false, false]
     let aim = null
@@ -1226,7 +1162,7 @@ export function makeBot(hello, mapFiles, override = {}) {
             const r = 2.5 * (1 + 0.05 * (tgt.cubes || 0))
             good = lat * flight * P.gun_select_k < r + 0.5
           }
-          if (clear && d < st.range && err < tol * P.gun_tol && good && !(P.stray_safe && strayRisk(obs, me, tgt, yaw))) fire[i] = true
+          if (clear && d < st.range && err < tol * P.gun_tol && good) fire[i] = true
           if ((wp.ammo ?? 1) === 0 && (wp.reload ?? 0) === 0) act.reload = true
         } else if (wp.kind === "laser") {
           const ch = wp.charge || 0
@@ -1241,7 +1177,7 @@ export function makeBot(hello, mapFiles, override = {}) {
           if (wp.cooldown <= 0 && d < st.range && clear) fire[i] = ch < full ? true : !(e2 < t2)
           else if (ch > 0) fire[i] = !(e2 < t2 * 2)
         } else if (wp.kind === "lightning") {
-          if (d < st.range * 0.95 && Math.abs(angDiff(ay, yaw)) < (st.cone_deg * Math.PI / 180) * 0.8 && clear && !(P.stray_safe && lightningRisk(obs, me, tgt, ay, st))) fire[i] = me.energy > P.lightning_min_energy
+          if (d < st.range * 0.95 && Math.abs(angDiff(ay, yaw)) < (st.cone_deg * Math.PI / 180) * 0.8 && clear) fire[i] = me.energy > P.lightning_min_energy
         } else if (wp.kind === "mortar") {
           if (wp.cooldown <= 0 && d > 25 && d < 220) {
             const mp = mortarPitch(dist2(tgt.pos, pos), tgt.pos[2] - pos[2] - (stats.height || 9) - 0.5, st.speed, st.gravity)
@@ -1272,7 +1208,6 @@ export function makeBot(hello, mapFiles, override = {}) {
       else if (t - S.lastDamagedT < 4 && S.lastDamageBearing != null) aim = [S.lastDamageBearing, 0]
       else if (mode === "fort" && S.fortDir != null && dist2([S.fort.x, S.fort.y], pos) < 6 && !snd.some((x) => x.dist === "near")) aim = [S.fortDir + Math.sin(t * 0.7) * 0.5, 0]
       else if (snd.length) { const r = { near: 0, mid: 1, far: 2 }; snd.sort((a, b) => r[a.dist] - r[b.dist]); aim = [snd[0].bearing, 0] }
-      else if (mode === "watch" && S.owBearing != null) aim = [S.owBearing + Math.sin(t * 0.8) * 0.35, 0]
       else {
         const mv = act.move || [0, 0]
         aim = hyp(mv[0], mv[1]) > 0.3 ? [Math.atan2(mv[1], mv[0]) + Math.sin(t * 1.3) * 0.9, 0] : [me.aim[0] + 0.25, 0]
