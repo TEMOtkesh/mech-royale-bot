@@ -53,7 +53,7 @@ hostile_only: false, hostile_ang: 0.2, hostile_near: 60, hostile_mem: 4,
 short_retreat: 0, lethal: false, lethal_k: 0.8,
 opp: false, opp_late: 4, opp_range: 130, fight_boost: false, aim_risk: 0, near_risk: 0,
 ammo_track: false, pick_mem: false, pick_mem_empty: 160, pick_mem_swap: 90,
-fightmove: false, fr_gun: 88, fr_laser: 115, fr_light: 28, fr_range_w: 1.0, fr_los_w: 40, fr_expose_w: 28, fr_strafe_w: 8, fr_aim_w: 0, ghost_fight: false, iso_press: 0, tgt_hpw: 90, tgt_low: 0, finish_fm: 0, tgt_need_los: false, finish_crowd: 0, finish_min_hp: 0.35, drops: true, grab_safe: false, slew_fire: false, self_lead: false, rear_guard: false, regen_hold: 0, final_hold: 0, ffa_late_alive: 0, ffa_late_override: null, ffa_early_t: 0, ffa_squad_need: 0, drop_heal: false, drop_heal_hp: 0.7, drop_heal_r: 220, fr_flank_w: 0, preaim: 0, ttk_rule: false, ttk_ratio: 0.8, ttk_live: false, fr_light_avoid: 0, vlead: false, loot_threat_only: false, late_base_t: 0, late_override: null,
+fightmove: false, fr_gun: 88, fr_laser: 115, fr_light: 28, fr_range_w: 1.0, fr_los_w: 40, fr_expose_w: 28, fr_strafe_w: 8, fr_aim_w: 0, ghost_fight: false, iso_press: 0, tgt_hpw: 90, tgt_low: 0, finish_fm: 0, tgt_need_los: false, finish_crowd: 0, finish_min_hp: 0.35, drops: true, grab_safe: false, slew_fire: false, self_lead: false, rear_guard: false, regen_hold: 0, final_hold: 0, ffa_late_alive: 0, ffa_late_override: null, ffa_early_t: 0, ffa_squad_need: 0, drop_heal: false, drop_heal_hp: 0.7, drop_heal_r: 220, fr_flank_w: 0, preaim: 0, ttk_rule: false, ttk_ratio: 0.8, ttk_live: false, fr_light_avoid: 0, vlead: false, loot_threat_only: false, hostile_all: false, late_base_t: 0, late_override: null,
 overwhelm: 3, overwhelm_hp: 0.9,
 fortress: false, fort_open: 5, fort_arms: 1, fort_after: 60,
 econ: false, econ_radius: 180, econ_hp: 0.5, econ_cubes: 10,
@@ -407,7 +407,7 @@ let best = null, bs = 1e18, cur = null, cs = 1e18
 for (const m of enemies) {
 const d = dist3(m.pos, me.pos)
 if (d > 260) continue
-if (P.hostile_only && S.squad && !hostile(m, me, d)) continue
+if (P.hostile_only && (S.squad || P.hostile_all) && !hostile(m, me, d)) continue
 if (P.opp && !S.squad && !oppOK(m, me, d)) continue
 const hpf = (m.hp ?? 1400) / Math.max(1, m.max_hp ?? 1400)
 let s = d + hpf * P.tgt_hpw - (hpf < 0.3 ? P.tgt_low : 0)
