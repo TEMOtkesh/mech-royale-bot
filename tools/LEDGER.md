@@ -45,9 +45,10 @@ Noise from a small behaviour change is about ±0.15; an identical commit re-scor
 | Z6 | + hunt further out (240/260) | Z2 | 5.86 | ❌ |
 | Z10 | + laser first harder (LaserValue 9, LaserSprint 60) | Z2 | 5.84 | ❌ |
 | Z13 | + tier-aware house-bot odds (easy ×0.6 … expert ×1.2 by kill count) | Z2 | 6.04 | ✅ ties Z2 → new base |
-| V1 | + vision bundle: sensors early, torso sweeps toward the squad; + free-for-all clock gate | Z13 | queued 18:21 | |
-| V2 | V1 + hunt only nearby (don't wake idle bots) | V1 | queued | |
-| V3 | V2 + wider cube economy | V2 | queued | |
+| V1 | + vision bundle: sensors early, torso sweeps toward the squad; + free-for-all clock gate | Z13 | 5.85 | |
+| **V2** | V1 + hunt only nearby (don't wake idle bots) | V1 | **6.24** | ★ best → rank 19, **final entry** |
+| V3 | V2 + wider cube economy | V2 | 6.11 | ❌ vs V2 |
+| V2r | V2 unchanged (README note), fresh seeds | V2 | queued 18:33 | |
 
 ## Lessons
 
