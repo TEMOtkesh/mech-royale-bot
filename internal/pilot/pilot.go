@@ -142,6 +142,7 @@ type Pilot struct {
 	holdCell   int
 	holdT      float64
 	scan       float64
+	squadBear  float64
 	takeT      float64
 	lootID     int
 	bans       map[int]float64 // loot ids (and negative roam cells) we gave up on, until when
