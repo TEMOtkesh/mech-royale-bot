@@ -115,6 +115,9 @@ func (p *Pilot) pickErrand(danger bool, st stance) *errand {
 			consider(errand{kind: "pickup", id: it.ID, pos: it.Pos}, v, 0.5, st.lootRadius)
 		}
 	}
+	// free-for-all while passive: dealing damage resets the 5 s repair delay, so while hurt leave crates and
+	// drones alone and let the repair run (weapons and cubes are still picked up)
+	quiet := !p.practice() && p.T.FFAPassive > 0 && p.o.Alive > p.T.FFAPassive && p.hp < 0.85*p.o.Self.MaxHP
 	if p.o.Self.Cubes < st.wantCubes {
 		for _, it := range p.cubes {
 			if it.OnFoot {
@@ -122,11 +125,11 @@ func (p *Pilot) pickErrand(danger bool, st stance) *errand {
 			}
 		}
 		for _, it := range p.crates {
-			if it.OnFoot { // a crate on a roof drops its cube up there: skip it
+			if it.OnFoot && !quiet { // a crate on a roof drops its cube up there: skip it
 				consider(errand{kind: "crate", id: it.ID, pos: it.Pos}, 7, 2.5, st.lootRadius)
 			}
 		}
-		if !danger {
+		if !danger && !quiet {
 			for _, c := range p.contacts {
 				if !c.Drone || p.now-c.SeenT >= 20 {
 					continue
