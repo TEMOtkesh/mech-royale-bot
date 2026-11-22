@@ -57,7 +57,7 @@ export const DEFAULTS = {
   short_retreat: 0, lethal: false, lethal_k: 0.8,
   opp: false, opp_late: 4, opp_range: 130, fight_boost: false, aim_risk: 0, near_risk: 0,
   ammo_track: false, pick_mem: false, pick_mem_empty: 160, pick_mem_swap: 90,
-  fightmove: false, fr_gun: 88, fr_laser: 115, fr_light: 28, fr_range_w: 1.0, fr_los_w: 40, fr_expose_w: 28, fr_strafe_w: 8, fr_aim_w: 0, ghost_fight: false, iso_press: 0, tgt_hpw: 90, tgt_low: 0, finish_fm: 0, tgt_need_los: false, finish_crowd: 0, finish_min_hp: 0.35, drops: true, grab_safe: false, slew_fire: false, self_lead: false, late_base_t: 0, late_override: null,
+  fightmove: false, fr_gun: 88, fr_laser: 115, fr_light: 28, fr_range_w: 1.0, fr_los_w: 40, fr_expose_w: 28, fr_strafe_w: 8, fr_aim_w: 0, ghost_fight: false, iso_press: 0, tgt_hpw: 90, tgt_low: 0, finish_fm: 0, tgt_need_los: false, finish_crowd: 0, finish_min_hp: 0.35, drops: true, grab_safe: false, slew_fire: false, self_lead: false, rear_guard: false, late_base_t: 0, late_override: null,
   overwhelm: 3, overwhelm_hp: 0.9,
   fortress: false, fort_open: 5, fort_arms: 1, fort_after: 60,
   econ: false, econ_radius: 180, econ_hp: 0.5, econ_cubes: 10,
@@ -387,6 +387,19 @@ export function makeBot(hello, mapFiles, override = {}) {
     if (S.finishId != null) { const f = enemies.find((m) => m.id === S.finishId); if (f) { S.targetId = f.id; return f } }
     // stickiness: don't thrash between targets (finish what we started)
     if (cur && cs < bs + P.stick) best = cur
+    if (P.rear_guard && best) {
+      // never keep shooting one mech while another hits us from behind (rear hits do 1.5x): turn to face the attacker
+      const bb = Math.atan2(best.pos[1] - me.pos[1], best.pos[0] - me.pos[0])
+      const bhp = (best.hp ?? 1400) / Math.max(1, best.max_hp ?? 1400)
+      let att = null
+      for (const m of enemies) {
+        const th = S.threats.get(m.id)
+        if (!th || S.T - th[0] > 2.5 || m.id === best.id) continue
+        const ab = Math.atan2(m.pos[1] - me.pos[1], m.pos[0] - me.pos[0])
+        if (Math.abs(angDiff(ab, bb)) > 1.4 && (!att || th[0] > att[1])) att = [m, th[0]]
+      }
+      if (att && bhp > 0.25) best = att[0]
+    }
     S.targetId = best ? best.id : null
     return best
   }
