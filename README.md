@@ -1,20 +1,61 @@
 # Sulertia mech bot
 
-A `mechfight/1` bot for the Builders Buildathon **Mech Royale** track, by team Sulertia. It reads
-observations as JSON lines on stdin and answers each one with a single action line on stdout.
-Go, standard library only.
+A `mechfight/1` bot for the Builders Buildathon **Mech Royale** track, by team Sulertia. Go, standard
+library only. Built on the open-source [zoro](https://github.com/Specz04/zoro) bot (MIT, see `LICENSE`).
 
-Built on [zoro](https://github.com/Specz04/zoro) (MIT, see `LICENSE`). Our work on top of it:
+## What we built
 
-- Practice against the house squad: fight odds weighted by the hunters' likely tier (the squad hunts
-  weakest first, so the kill count tells which tier is coming), the torso sweeps toward the squad between
-  fights, sensors early and damage before armour in the upgrade order, no retreat from the squad, and
-  hunting only nearby squad members.
-- Final rounds: free-for-all play from the first tick after the submission cutoff.
+### 1. Tier-aware fight odds against the house squad
+The practice squad is 4 easy, 4 medium, 4 hard and 3 expert bots that hunt us weakest first, one at
+first and more as we thin them out. That means the number of mechs already dead tells us which tier is
+coming next. Our odds model scales a house bot's expected damage by that tier (easy ×0.6, medium ×0.8,
+hard ×1.0, expert ×1.2), so the bot takes fights eagerly against the early easy hunters and picks them
+more carefully against the late experts (`SquadTiers`, `tierFactor` in `internal/pilot/odds.go`).
 
-Ideas also came from the published notes of tin-buckeye, andrew-zhouu and youraverageguy-123.
+### 2. Vision first: seeing hunters at 200 m instead of 45 m
+Every hunter walks straight at us. Seen at 200 m, it takes about six laser shots (about 1,600 damage,
+more than its 1,400 HP) before it reaches gun range. But a mech only sees 200 m inside the 120° cone its
+torso faces, and 45 m everywhere else, so a hunter walking in from outside the cone turns a free kill
+into a close-range coin flip. Two changes follow from that:
+- Between fights the torso sweeps around the nearest squad member seen in the last 20 s, which is where
+  the next hunter comes from (`SquadLook`, `squadBearingOK` in `internal/pilot/ballistics.go`).
+- Sensors (+25 m vision, half the sound-bearing error) come right after the drum magazine and the laser
+  lens in the practice upgrade order.
 
-## Layout
+### 3. Fight only what comes for us
+House bots that are not hunting us stay idle until their turn. Attacking them early wakes stronger
+bots sooner. We cut the hunting radius against the squad to nearby mechs only (`SquadHunt`,
+`SquadHuntLaser`). In our tests this was the largest single gain (5.85 → 6.24).
+
+### 4. Commit to every fight against the squad
+The squad shares vision and follows anyway, so a retreat across open ground only gives away free hits.
+Against the squad we never break off a fight and never retreat on low health (`SquadNoRetreat`,
+`SquadRetreatHP`). This gained +0.45 in our own earlier bot and +0.13 here.
+
+### 5. Damage before armour in practice
+The squad comes one hunter after another, so killing each one faster beats taking less damage: the
+drum magazine (+31 % sustained gun damage) and the lens (+18 % laser) beat 8 % armour. Practice
+upgrades are taken damage first (`SquadDamageFirst`, `practiceUpgradeOrder` in `internal/pilot/loot.go`).
+
+### 6. Final rounds: free-for-all from the first tick
+After the submission cutoff every match is a free-for-all, so from that moment the bot plays its
+free-for-all game from the first tick instead of waiting for deaths it did not cause to prove it
+(`FFAClock`, `internal/pilot/lobby.go`).
+
+### How we got here
+We tested about 80 versions against the practice squad over two days, logging every result
+(`tools/LEDGER.md` on our main branch). We also built and tested our own bot from scratch (`brain.js`
+on main), and its findings drove most of the changes above: laser first, no retreat, cube collection,
+selective targeting. We audited 94 recorded matches of our own for how, when and why we died: most
+deaths were close-range one-on-ones with only the gun, started during side-trips or while retreating.
+
+### Credits
+The base bot is zoro (Specz04, MIT). Ideas also came from the published notes of tin-buckeye,
+andrew-zhouu and youraverageguy-123.
+
+## Technical notes
+
+### Layout
 
 | Path | What it is |
 | --- | --- |
