@@ -51,9 +51,7 @@
   "loot_threat_only": true,
   "weapon_seek": 160,
   "stray_safe": true,
-  "finish_crowd": 1,
-  "grab_safe": true,
-  "drop_heal": true
+  "overwatch": true
  },
  "ffa_override": {},
  "overwhelm": 99,
