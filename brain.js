@@ -56,7 +56,7 @@ export const DEFAULTS = {
   hostile_only: false, hostile_ang: 0.2, hostile_near: 60, hostile_mem: 4,
   short_retreat: 0, lethal: false, lethal_k: 0.8,
   opp: false, opp_late: 4, opp_range: 130, fight_boost: false, aim_risk: 0, near_risk: 0,
-  laser_run: 0, errand_clear: 40, blind_turn: 0, tgt_laser: 0, las_peek: 0, seek: 0, seek_range: 320, aim_top: false,
+  laser_run: 0, errand_clear: 40, blind_turn: 0, tgt_laser: 0, las_peek: 0, seek: 0, seek_range: 320, aim_top: false, learn_lead: 0, lead_floor: 0.5,
   ammo_track: false, pick_mem: false, pick_mem_empty: 160, pick_mem_swap: 90,
   fightmove: false, fr_gun: 88, fr_laser: 115, fr_light: 28, fr_range_w: 1.0, fr_los_w: 40, fr_expose_w: 28, fr_strafe_w: 8, fr_aim_w: 0, ghost_fight: false, iso_press: 0, tgt_hpw: 90, tgt_low: 0, finish_fm: 0, tgt_need_los: false, finish_crowd: 0, finish_min_hp: 0.35, drops: true, grab_safe: false, slew_fire: false, self_lead: false, rear_guard: false, regen_hold: 0, final_hold: 0, ffa_late_alive: 0, ffa_late_override: null, ffa_early_t: 0, ffa_squad_need: 0, drop_heal: false, drop_heal_hp: 0.7, drop_heal_r: 220, fr_flank_w: 0, preaim: 0, ttk_rule: false, ttk_ratio: 0.8, ttk_live: false, fr_light_avoid: 0, vlead: false, loot_threat_only: false, hostile_all: false, stray_safe: false, stray_w: 6, overwatch: false, late_base_t: 0, late_override: null,
   overwhelm: 3, overwhelm_hp: 0.9,
@@ -536,6 +536,23 @@ export function makeBot(hello, mapFiles, override = {}) {
       let ev = v
       if (prev && prev.src === "see" && prev.ev && t - prev.t < 0.5) { const k = P.vel_ema; ev = [prev.ev[0] * (1 - k) + v[0] * k, prev.ev[1] * (1 - k) + v[1] * k, v[2]] }
       S.tracked.set(m.id, { pos: m.pos, vel: v, ev, hp: m.hp ?? 1400, max_hp: m.max_hp ?? 1400, t, src: "see", aim: m.aim, weapons: m.weapons, cubes: m.cubes })
+      if (P.learn_lead) {
+        // lead learned per opponent: score an imaginary shot fired one flight time ago, with and without lead,
+        // against where the mech really is now; some walk straight (lead them), some jitter (aim where they stand)
+        const H = (S.leadHist = S.leadHist || new Map()), E = (S.leadErr = S.leadErr || new Map())
+        const h = H.get(m.id) || []; h.push([t, m.pos[0], m.pos[1], v[0], v[1]]); while (h.length && t - h[0][0] > 2.5) h.shift(); H.set(m.id, h)
+        const tau = Math.min(2, dist2(m.pos, obs.self.pos) / 252)
+        if (tau > 0.15) {
+          let best = null
+          for (const x of h) if (Math.abs(t - x[0] - tau) < 0.06) { best = x; break }
+          if (best) {
+            const dt = t - best[0]
+            const eL = hyp(best[1] + best[3] * dt - m.pos[0], best[2] + best[4] * dt - m.pos[1]), eN = hyp(best[1] - m.pos[0], best[2] - m.pos[1])
+            const e = E.get(m.id) || { L: 0, N: 0, n: 0 }, a = e.n < 10 ? 1 / (e.n + 1) : 0.1
+            e.L += (eL - e.L) * a; e.N += (eN - e.N) * a; e.n++; E.set(m.id, e)
+          }
+        }
+      }
     }
     const me = obs.self.pos
     const dmap = { near: 40, mid: 110, far: 230 }
@@ -1229,7 +1246,9 @@ export function makeBot(hello, mapFiles, override = {}) {
       const gspeed = gw && gw.kind === "gun" ? gw.stats.speed : 252
       let tvel = tgt.vel || [0, 0, 0]
       if (tkind === "mech" && P.vel_ema < 1) { const tr = S.tracked.get(tgt.id); if (tr && tr.ev) tvel = tr.ev }
-      tvel = [tvel[0] * P.lead_k, tvel[1] * P.lead_k, tvel[2] * P.lead_k]
+      let lk = P.lead_k
+      if (P.learn_lead && tkind === "mech" && S.leadErr) { const e = S.leadErr.get(tgt.id); if (e && e.n >= P.learn_lead) lk *= Math.max(P.lead_floor, Math.min(1, 0.5 + (e.N - e.L) / (e.N + e.L + 0.5))) }
+      tvel = [tvel[0] * lk, tvel[1] * lk, tvel[2] * lk]
       // a mech is a 9 m cylinder with no weak spot: aim at its middle, but when low cover hides the middle and the
       // top still shows, aim at the top instead of holding fire (they can see and shoot us over the same wall)
       let ahz = 4.5
