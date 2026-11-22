@@ -70,15 +70,15 @@ Times are Tbilisi. *Seeds*: `old` = scored on the 48 fixed seeds before the ~10:
 | 63 | Sun 16:16 | m3allXfar | own | m2 + long range (gun 150 / laser 170) | new | **5.31** |  |
 | 64 | Sun 16:19 | m4allXH | own | m2 + no hiding | new | **5.32** |  |
 | 65 | Sun 16:32 | m5nofin | own | m2 + no chasing weak targets | new | **5.23** |  |
-| 66 | Sun 16:48 | Z1 | zoro-based | zoro (MIT, credited) + damage-first practice upgrades + no low-HP retreat from the squad | new | **5.91** | ★ new best |
+| 66 | Sun 16:48 | Z1 | Z/V line | base (built on zoro, MIT) + damage-first practice upgrades + no low-HP retreat from the squad | new | **5.91** | ★ new best |
 | 67 | Sun 17:12 | m1all | own | m2 with the normal laser run | new | **5.39** |  |
-| 68 | Sun 17:14 | Z2 | zoro-based | Z1 + never break off a fight against the squad | new | **6.04** | ★ new best |
-| 69 | Sun 17:21 | Z5 | zoro-based | Z2 + hunt the squad at a smaller advantage | new | **5.79** |  |
-| 70 | Sun 17:24 | Z6 | zoro-based | Z2 + hunt the squad further out | new | **5.86** |  |
-| 71 | Sun 17:33 | z10 | zoro-based | Z2 + laser first harder (LaserValue 9, LaserSprint 60) | new | **5.84** |  |
-| 72 | Sun 17:48 | Z13 | zoro-based | Z2 + tier-aware house-bot odds (easy early, expert late) | new | **6.04** |  |
+| 68 | Sun 17:14 | Z2 | Z/V line | Z1 + never break off a fight against the squad | new | **6.04** | ★ new best |
+| 69 | Sun 17:21 | Z5 | Z/V line | Z2 + hunt the squad at a smaller advantage | new | **5.79** |  |
+| 70 | Sun 17:24 | Z6 | Z/V line | Z2 + hunt the squad further out | new | **5.86** |  |
+| 71 | Sun 17:33 | z10 | Z/V line | Z2 + laser first harder (LaserValue 9, LaserSprint 60) | new | **5.84** |  |
+| 72 | Sun 17:48 | Z13 | Z/V line | Z2 + tier-aware house-bot odds (easy early, expert late) | new | **6.04** |  |
 
-Not shown above: builds queued but not yet scored at 18:10 — V1, V2, V3 (zoro line bundles: vision + hunting + cubes, all with the free-for-all clock gate) and F1 (our own final candidate).
+Not shown above: builds queued but not yet scored at 18:10 — V1, V2, V3 (Z/V line bundles: vision + hunting + cubes, all with the free-for-all clock gate) and F1 (our own final candidate).
 
 ## How, when and why we die (only data that exists: 94 live-bench matches, older own versions, free-for-all rooms)
 

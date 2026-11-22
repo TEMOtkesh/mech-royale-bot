@@ -35,11 +35,11 @@ Noise from a small behaviour change is about ±0.15; an identical commit re-scor
 | q3lead | + gun lead learned per opponent | m2 | queued | |
 | **F1** | m2allX + free-for-all from the first tick after the cutoff, fight to win at ≤4 left or 240 s | m2 | queued | **own final candidate** |
 
-## zoro line (branch `zoro`; Specz04/zoro, MIT, credited)
+## Z/V line (branches `zoro`, `z*`, `v*`; built on Specz04/zoro, MIT)
 
 | Build | Change | Base | Score | Verdict |
 |---|---|---|---|---|
-| Z1 | practice damage-first upgrades + no low-HP retreat vs squad | zoro | 5.91 | ✅ |
+| Z1 | practice damage-first upgrades + no low-HP retreat vs squad | base | 5.91 | ✅ |
 | **Z2** | + never break off a fight vs squad | Z1 | **6.04** | ✅ best (rank 33) |
 | Z5 | + hunt at smaller advantage (0.7) | Z2 | 5.79 | ❌ |
 | Z6 | + hunt further out (240/260) | Z2 | 5.86 | ❌ |
@@ -48,7 +48,9 @@ Noise from a small behaviour change is about ±0.15; an identical commit re-scor
 | V1 | + vision bundle: sensors early, torso sweeps toward the squad; + free-for-all clock gate | Z13 | 5.85 | |
 | **V2** | V1 + hunt only nearby (don't wake idle bots) | V1 | **6.24** | ★ best → rank 19, **final entry** |
 | V3 | V2 + wider cube economy | V2 | 6.11 | ❌ vs V2 |
-| V2r | V2 unchanged (README note), fresh seeds | V2 | queued 18:33 | |
+| V2r | V2 unchanged, fresh seeds | V2 | 6.17 | confirms V2 |
+| V2n | V2 with our bot name and README | V2 | queued | |
+| V4 | V2n + hunt only within 50/70 m, no fight seeking | V2n | queued | |
 
 ## Lessons
 
@@ -57,5 +59,5 @@ Noise from a small behaviour change is about ±0.15; an identical commit re-scor
 - Against the squad, commitment wins: no retreat (+0.45 own, +0.13 zoro); cautious variants lose (also reported by three other teams).
 - Laser first is the biggest single gain (+0.37); hiding helps while holding a laser.
 - Cube piles from kills matter; drone/crate farming does not.
-- zoro: hunting more (Z5, Z6) lost → testing hunting less (Z11, Z12, Z7): idle house bots only come when it is their turn.
+- Z/V line: hunting more (Z5, Z6) lost → testing hunting less (Z11, Z12, Z7): idle house bots only come when it is their turn.
 - Our long-range positioning has failed three times; seeking fights failed; top-aim failed twice.
