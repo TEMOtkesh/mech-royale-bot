@@ -45,11 +45,9 @@ Noise from a small behaviour change is about ±0.15; an identical commit re-scor
 | Z6 | + hunt further out (240/260) | Z2 | 5.86 | ❌ |
 | Z10 | + laser first harder (LaserValue 9, LaserSprint 60) | Z2 | 5.84 | ❌ |
 | Z13 | + tier-aware house-bot odds (easy ×0.6 … expert ×1.2 by kill count) | Z2 | 6.04 | ✅ ties Z2 → new base |
-| Z14 | + hunt only nearby (80/100 m) | Z13 | queued 18:21 | |
-| Z18 | + free-for-all from the first tick after the cutoff (practice = Z13) | Z13 | queued | safety-net final |
-| Z16 | + wider cube economy | Z13 | queued | |
-| Z20 | + torso sweeps toward the nearest recently seen squad member (vision first) | Z13 | queued | |
-| Z19 | + sensors early in practice upgrades (+25 m vision) | Z13 | queued | |
+| V1 | + vision bundle: sensors early, torso sweeps toward the squad; + free-for-all clock gate | Z13 | queued 18:21 | |
+| V2 | V1 + hunt only nearby (don't wake idle bots) | V1 | queued | |
+| V3 | V2 + wider cube economy | V2 | queued | |
 
 ## Lessons
 
