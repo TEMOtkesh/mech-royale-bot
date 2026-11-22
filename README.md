@@ -40,7 +40,9 @@ upgrades are taken damage first (`SquadDamageFirst`, `practiceUpgradeOrder` in `
 ### 6. Final rounds: free-for-all from the first tick
 After the submission cutoff every match is a free-for-all, so from that moment the bot plays its
 free-for-all game from the first tick instead of waiting for deaths it did not cause to prove it
-(`FFAClock`, `internal/pilot/lobby.go`).
+(`FFAClock`, `internal/pilot/lobby.go`). In a free-for-all, placement counts rather than kills, so while more
+than four mechs are alive the bot starts no fight of its own and lets the others fight each other; it still
+answers anyone who comes for it (`FFAPassive` in `internal/pilot/threats.go`).
 
 ### How we got here
 We tested about 80 versions against the practice squad over two days, logging every result

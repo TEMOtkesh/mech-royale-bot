@@ -21,7 +21,13 @@ func (p *Pilot) stance() stance {
 	if p.practice() {
 		return stance{squad: true, engage: p.T.SquadEngage, disengage: p.T.Disengage, lootRadius: p.T.LootRadius, wantCubes: p.T.SquadCubes}
 	}
-	return stance{engage: p.T.Engage, disengage: p.T.Disengage, careful: true, lootRadius: p.T.LootRadius, wantCubes: p.T.WantCubes}
+	engage := p.T.Engage
+	if p.T.FFAPassive > 0 && p.o.Alive > p.T.FFAPassive {
+		// free-for-all: placement counts, not kills; while many are alive let the others fight each other
+		// and start no fight of our own (we still answer anyone who comes for us)
+		engage = 99
+	}
+	return stance{engage: engage, disengage: p.T.Disengage, careful: true, lootRadius: p.T.LootRadius, wantCubes: p.T.WantCubes}
 }
 
 // threat is an enemy mech as it matters to this decision.

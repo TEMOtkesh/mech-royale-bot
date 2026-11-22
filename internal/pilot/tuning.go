@@ -60,6 +60,7 @@ type Tuning struct {
 	SquadTiers       bool    // against the squad, weigh house bots by their likely tier (from how many are dead)
 	FFAClock         bool    // after the submission cutoff every match is a free-for-all
 	SquadLook        bool    // against the squad, sweep the torso around the nearest recently seen squad member
+	FFAPassive       int     // free-for-all: start no fight of our own while more than this many mechs are alive
 	SquadKiteMin     float64
 	SquadKiteMax     float64
 
@@ -141,6 +142,7 @@ func Defaults() Tuning {
 		SquadTiers:       true,
 		FFAClock:         true,
 		SquadLook:        true,
+		FFAPassive:       4,
 		SquadReturnHP:    0.6,
 		SquadSwarmTTD:    4,
 		SquadDuelLeave:   0.35,
