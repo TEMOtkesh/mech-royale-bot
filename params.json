@@ -8,10 +8,10 @@
  "squad_override": {
   "upgrade_order": [
    "plating",
+   "nanites",
    "armor",
    "laser_damage",
    "laser_charge",
-   "nanites",
    "gun_damage",
    "gun_rate",
    "lightning_efficiency",
@@ -52,12 +52,7 @@
   "weapon_seek": 160,
   "stray_safe": true,
   "laser_run": 220,
-  "errand_clear": 40,
-  "weapon_pref": {
-   "laser": 3,
-   "mortar": 2.5,
-   "lightning": 2
-  }
+  "errand_clear": 40
  },
  "ffa_override": {},
  "overwhelm": 99,
@@ -68,10 +63,5 @@
  "hostile_only": true,
  "hostile_all": true,
  "laser_run": 220,
- "errand_clear": 40,
- "weapon_pref": {
-  "laser": 3,
-  "mortar": 2.5,
-  "lightning": 2
- }
+ "errand_clear": 40
 }
