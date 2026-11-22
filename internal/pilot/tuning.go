@@ -134,6 +134,7 @@ func Defaults() Tuning {
 		SquadCubes:       15,
 		SquadRetreatHP:   0,
 		SquadDamageFirst: true,
+		SquadNoRetreat:   true,
 		SquadReturnHP:    0.6,
 		SquadSwarmTTD:    4,
 		SquadDuelLeave:   0.35,
