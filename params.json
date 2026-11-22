@@ -54,7 +54,12 @@
   "laser_run": 220,
   "errand_clear": 40,
   "tac_reload": true,
-  "regen_hold": 0.7
+  "regen_hold": 0.7,
+  "fr_gun": 150,
+  "fr_laser": 170,
+  "fr_range_w": 2.0,
+  "fight_boost": true,
+  "tgt_laser": 60
  },
  "ffa_override": {},
  "overwhelm": 99,
