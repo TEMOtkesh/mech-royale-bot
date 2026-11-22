@@ -156,8 +156,8 @@ func Defaults() Tuning {
 		DeepRange:  80,
 		DeepGain:   18,
 
-		LootRadius:  220,
-		WantCubes:   10,
+		LootRadius:  300,
+		WantCubes:   15,
 		HiddenBias:  0.5,
 		ArmSwapMin:  1.0,
 		LaserValue:  6.0,
