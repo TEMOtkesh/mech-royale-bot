@@ -57,7 +57,7 @@ export const DEFAULTS = {
   short_retreat: 0, lethal: false, lethal_k: 0.8,
   opp: false, opp_late: 4, opp_range: 130, fight_boost: false, aim_risk: 0, near_risk: 0,
   ammo_track: false, pick_mem: false, pick_mem_empty: 160, pick_mem_swap: 90,
-  fightmove: false, fr_gun: 88, fr_laser: 115, fr_light: 28, fr_range_w: 1.0, fr_los_w: 40, fr_expose_w: 28, fr_strafe_w: 8, fr_aim_w: 0, ghost_fight: false, iso_press: 0, tgt_hpw: 90, tgt_low: 0, finish_fm: 0, tgt_need_los: false, finish_crowd: 0, finish_min_hp: 0.35, drops: true, grab_safe: false, slew_fire: false, self_lead: false, rear_guard: false, late_base_t: 0, late_override: null,
+  fightmove: false, fr_gun: 88, fr_laser: 115, fr_light: 28, fr_range_w: 1.0, fr_los_w: 40, fr_expose_w: 28, fr_strafe_w: 8, fr_aim_w: 0, ghost_fight: false, iso_press: 0, tgt_hpw: 90, tgt_low: 0, finish_fm: 0, tgt_need_los: false, finish_crowd: 0, finish_min_hp: 0.35, drops: true, grab_safe: false, slew_fire: false, self_lead: false, rear_guard: false, regen_hold: 0, final_hold: 0, late_base_t: 0, late_override: null,
   overwhelm: 3, overwhelm_hp: 0.9,
   fortress: false, fort_open: 5, fort_arms: 1, fort_after: 60,
   econ: false, econ_radius: 180, econ_hp: 0.5, econ_cubes: 10,
@@ -783,6 +783,11 @@ export function makeBot(hello, mapFiles, override = {}) {
     S.roofPlan = null
     const zg = zoneGoal(obs, pos)
     if (!me.in_zone || zoneUrgent(obs, pos)) return [zg || obs.zone.next_center, "zone_run"]
+    if (P.final_hold && obs.zone.next_radius <= P.final_hold) {
+      // last circles: the zone kills survivors in order of distance from its end point, so stand on it
+      const nc = obs.zone.next_center, tol = Math.max(2, Math.min(obs.zone.radius, 40) * 0.2)
+      if (dist2(pos, nc) > tol) return [[nc[0], nc[1]], "zone_run"]
+    }
     const winning = P.keep_fight && target && dist2(target.pos, pos) < 120 && ((target.hp ?? 1400) < 250 || (target.hp ?? 1400) < 0.5 * me.hp)
     if (P.short_retreat) {
       if (losing(me, enemies, target, hpFrac) && !(P.ammo_track && target && vulnerable(target, t))) S.loseAt = t
@@ -1005,12 +1010,14 @@ export function makeBot(hello, mapFiles, override = {}) {
     let aim = null
     const eye = [pos[0], pos[1], pos[2] + muzzle]
     let tgt = target, tkind = "mech"
-    if (!tgt && npcs.length && P.farm_npcs && mode !== "retreat" && mode !== "zone_run") {
+    // dealing damage resets the 5 s repair delay: while hurt and between fights, leave drones and crates alone so we regenerate
+    const healing = P.regen_hold && me.hp / Math.max(1, me.max_hp) < P.regen_hold && !target
+    if (!tgt && npcs.length && P.farm_npcs && !healing && mode !== "retreat" && mode !== "zone_run") {
       const nn = [...npcs].sort((a, b) => dist3(a.pos, pos) - dist3(b.pos, pos))
       if (dist3(nn[0].pos, pos) < (mode === "farm" ? 110 : 70)) { tgt = nn[0]; tkind = "npc" }
     }
     let crate = null
-    if (!tgt && (mode === "crate" || mode === "idle" || mode === "loot" || mode === "farm")) {
+    if (!tgt && !healing && (mode === "crate" || mode === "idle" || mode === "loot" || mode === "farm")) {
       const cs = [...(obs.crates || [])].sort((a, b) => dist3(a.pos, pos) - dist3(b.pos, pos))
       if (cs.length && dist3(cs[0].pos, pos) < 60) crate = cs[0]
     }
