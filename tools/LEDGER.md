@@ -42,7 +42,9 @@ Noise from a small behaviour change is about ±0.15; an identical commit re-scor
 | **Z2** | + never break off a fight vs squad | Z1 | **6.04** | ✅ best (rank 33) |
 | Z5 | + hunt at smaller advantage (0.7) | Z2 | 5.79 | ❌ |
 | Z6 | + hunt further out (240/260) | Z2 | 5.86 | ❌ |
-| Z10 | + laser first harder (LaserValue 9, LaserSprint 60) | Z2 | scoring | |
+| Z10 | + laser first harder (LaserValue 9, LaserSprint 60) | Z2 | 5.84 | ❌ |
+| Z11 | + hunt only nearby (SquadHunt 80 / laser 100) | Z2 | queued 17:48 | |
+| Z12 | + hunt only with a clear advantage (SquadEngage 1.3) | Z2 | queued | |
 | Z7 | + no fight seeking | Z2 | queued | |
 | Z8 | + wider cube economy (LootRadius 300, WantCubes 15) | Z2 | queued | |
 | Z9 | + no long-range kiting vs squad | Z2 | queued | |
@@ -52,4 +54,5 @@ Noise from a small behaviour change is about ±0.15; an identical commit re-scor
 - Against the squad, commitment wins: no retreat (+0.45 own, +0.13 zoro); cautious variants lose (also reported by three other teams).
 - Laser first is the biggest single gain (+0.37); hiding helps while holding a laser.
 - Cube piles from kills matter; drone/crate farming does not.
+- zoro: hunting more (Z5, Z6) lost → testing hunting less (Z11, Z12, Z7): idle house bots only come when it is their turn.
 - Our long-range positioning has failed three times; seeking fights failed; top-aim failed twice.
