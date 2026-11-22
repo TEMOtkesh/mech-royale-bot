@@ -56,7 +56,8 @@
   "fr_light_avoid": 3,
   "aim_top": false,
   "tac_reload": true,
-  "fr_laser": 160
+  "fr_laser": 160,
+  "fr_range_w": 2.0
  },
  "ffa_override": {},
  "overwhelm": 99,
