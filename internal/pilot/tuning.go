@@ -150,7 +150,7 @@ func Defaults() Tuning {
 		PatientSecs:      0,
 		PatientCubes:     10,
 		PatientRange:     70,
-		SquadKite:        true,
+		SquadKite:        false,
 		SquadKiteMin:     130,
 		SquadKiteMax:     190,
 
