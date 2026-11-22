@@ -128,7 +128,7 @@ func Defaults() Tuning {
 		StrafeMax:     1.1,
 
 		OpeningSecs:      24,
-		SquadEngage:      0.9,
+		SquadEngage:      0.7,
 		SquadHunt:        180,
 		SquadHuntLaser:   200,
 		SquadCubes:       15,
