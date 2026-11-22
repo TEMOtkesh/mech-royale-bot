@@ -53,7 +53,11 @@
   "stray_safe": true,
   "laser_run": 220,
   "errand_clear": 40,
-  "regen_hold": 0.7
+  "weapon_pref": {
+   "laser": 3,
+   "mortar": 2.5,
+   "lightning": 2
+  }
  },
  "ffa_override": {},
  "overwhelm": 99,
@@ -64,5 +68,10 @@
  "hostile_only": true,
  "hostile_all": true,
  "laser_run": 220,
- "errand_clear": 40
+ "errand_clear": 40,
+ "weapon_pref": {
+  "laser": 3,
+  "mortar": 2.5,
+  "lightning": 2
+ }
 }
