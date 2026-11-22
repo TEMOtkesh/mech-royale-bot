@@ -49,7 +49,8 @@
   "short_retreat": 1.5,
   "lethal": true,
   "loot_threat_only": true,
-  "weapon_seek": 160
+  "weapon_seek": 160,
+  "stray_safe": true
  },
  "ffa_override": {},
  "overwhelm": 99,
