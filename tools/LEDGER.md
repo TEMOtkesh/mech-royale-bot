@@ -47,11 +47,13 @@ Noise from a small behaviour change is about ±0.15; an identical commit re-scor
 | Z13 | + tier-aware house-bot odds (easy ×0.6 … expert ×1.2 by kill count) | Z2 | 6.04 | ✅ ties Z2 → new base |
 | Z14 | + hunt only nearby (80/100 m) | Z13 | queued 18:21 | |
 | Z18 | + free-for-all from the first tick after the cutoff (practice = Z13) | Z13 | queued | safety-net final |
-| Z15 | + no fight seeking | Z13 | queued | |
 | Z16 | + wider cube economy | Z13 | queued | |
-| Z17 | + no kiting vs squad | Z13 | queued | |
+| Z20 | + torso sweeps toward the nearest recently seen squad member (vision first) | Z13 | queued | |
+| Z19 | + sensors early in practice upgrades (+25 m vision) | Z13 | queued | |
 
 ## Lessons
+
+- First principles: each hunter walks straight at us; seen at 200 m it eats ~6 laser shots (~1,600 dmg) before reaching gun range. Vision (120° cone, 200 m) is the bottleneck, not firepower → Z19/Z20.
 
 - Against the squad, commitment wins: no retreat (+0.45 own, +0.13 zoro); cautious variants lose (also reported by three other teams).
 - Laser first is the biggest single gain (+0.37); hiding helps while holding a laser.
