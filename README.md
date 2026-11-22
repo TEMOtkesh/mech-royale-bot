@@ -1,11 +1,18 @@
-# zoro
+# Sulertia mech bot
 
-A `mechfight/1` bot for the Builders Buildathon **Mech Royale** track. It pilots one mech in the
-16-mech battle royale: it reads observations as JSON lines on stdin and answers each one with a single
-action line on stdout.
+A `mechfight/1` bot for the Builders Buildathon **Mech Royale** track, by team Sulertia. It reads
+observations as JSON lines on stdin and answers each one with a single action line on stdout.
+Go, standard library only.
 
-Go, standard library only. It recognises practice lobbies and hunts the house squad there; in a
-free-for-all it plays a careful, cover-first game.
+Built on [zoro](https://github.com/Specz04/zoro) (MIT, see `LICENSE`). Our work on top of it:
+
+- Practice against the house squad: fight odds weighted by the hunters' likely tier (the squad hunts
+  weakest first, so the kill count tells which tier is coming), the torso sweeps toward the squad between
+  fights, sensors early and damage before armour in the upgrade order, no retreat from the squad, and
+  hunting only nearby squad members.
+- Final rounds: free-for-all play from the first tick after the submission cutoff.
+
+Ideas also came from the published notes of tin-buckeye, andrew-zhouu and youraverageguy-123.
 
 ## Layout
 
@@ -47,17 +54,3 @@ python3 check/check.py --map-dir /arena -- docker run --rm -i --network none --c
 ## License
 
 MIT. See `LICENSE` (it also carries the notice of the MIT project this was originally derived from).
-
-## Team Sulertia changes (fork notice)
-
-Based on [zoro](https://github.com/Specz04/zoro) by Specz04, MIT licensed (see `LICENSE`, kept unchanged).
-Changes, all limited to practice games against the house squad (free-for-all play is unchanged):
-
-- `SquadDamageFirst`: against the squad, upgrades are taken damage first (drum magazine, lens, tungsten, capacitors, rotary feed) before plating and armor.
-- `SquadRetreatHP` 0.2 → 0: no low-health retreat from the squad.
-- `SquadNoRetreat` (on)
-- `SquadTiers`: house bots are weighed by their likely tier (easy → expert) from how many are already dead.: never break off a fight against the squad.
-- `FFAClock`: after the submission cutoff every match is played as a free-for-all from the first tick.
-- `SquadLook`: between fights the torso sweeps around the nearest recently seen squad member, so hunters are spotted at 200 m.
-- Practice upgrade order: sensors (+25 m vision) right after drum magazine and lens: vision, not range, limits the laser.
-- `SquadHunt` 80, `SquadHuntLaser` 100: only hunt nearby squad members (do not wake idle ones).

@@ -99,7 +99,7 @@ type Tuning struct {
 // Defaults returns the tuning the bot plays with.
 func Defaults() Tuning {
 	return Tuning{
-		Name: "anc",
+		Name: "sulertia",
 
 		Engage:        1.3,
 		Disengage:     0.75,
