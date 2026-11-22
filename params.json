@@ -43,14 +43,15 @@
   "finish_hp": 0.5,
   "prey_fire_range": 260,
   "engage_range": 260,
-  "grab_cubes": 70,
+  "grab_cubes": 40,
   "fightmove": true,
   "hostile_only": true,
   "short_retreat": 0,
   "lethal": true,
   "loot_threat_only": true,
   "weapon_seek": 160,
-  "stray_safe": true
+  "stray_safe": true,
+  "finish_fm": 25
  },
  "ffa_override": {},
  "overwhelm": 99,
