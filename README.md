@@ -61,3 +61,4 @@ Changes, all limited to practice games against the house squad (free-for-all pla
 - `SquadLook`: between fights the torso sweeps around the nearest recently seen squad member, so hunters are spotted at 200 m.
 - Practice upgrade order: sensors (+25 m vision) right after drum magazine and lens: vision, not range, limits the laser.
 - `SquadHunt` 80, `SquadHuntLaser` 100: only hunt nearby squad members (do not wake idle ones).
+- `LootRadius` 300, `WantCubes` 15: wider cube economy.
