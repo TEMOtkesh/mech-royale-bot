@@ -129,8 +129,8 @@ func Defaults() Tuning {
 
 		OpeningSecs:      24,
 		SquadEngage:      0.9,
-		SquadHunt:        180,
-		SquadHuntLaser:   200,
+		SquadHunt:        80,
+		SquadHuntLaser:   100,
 		SquadCubes:       15,
 		SquadRetreatHP:   0,
 		SquadDamageFirst: true,
