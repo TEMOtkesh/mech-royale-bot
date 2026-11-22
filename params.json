@@ -51,7 +51,8 @@
   "loot_threat_only": true,
   "weapon_seek": 160,
   "stray_safe": true,
-  "finish_fm": 25
+  "fr_gun": 70,
+  "fr_laser": 95
  },
  "ffa_override": {},
  "overwhelm": 99,
