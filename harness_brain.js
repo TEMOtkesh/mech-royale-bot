@@ -53,7 +53,7 @@ hostile_only: false, hostile_ang: 0.2, hostile_near: 60, hostile_mem: 4,
 short_retreat: 0, lethal: false, lethal_k: 0.8,
 opp: false, opp_late: 4, opp_range: 130, fight_boost: false, aim_risk: 0, near_risk: 0,
 ammo_track: false, pick_mem: false, pick_mem_empty: 160, pick_mem_swap: 90,
-fightmove: false, fr_gun: 88, fr_laser: 115, fr_light: 28, fr_range_w: 1.0, fr_los_w: 40, fr_expose_w: 28, fr_strafe_w: 8, fr_aim_w: 0, ghost_fight: false, iso_press: 0, tgt_hpw: 90, tgt_low: 0, finish_fm: 0, tgt_need_los: false, finish_crowd: 0, finish_min_hp: 0.35, drops: true, grab_safe: false, slew_fire: false, self_lead: false, rear_guard: false, regen_hold: 0, final_hold: 0, ffa_late_alive: 0, ffa_late_override: null, ffa_early_t: 0, late_base_t: 0, late_override: null,
+fightmove: false, fr_gun: 88, fr_laser: 115, fr_light: 28, fr_range_w: 1.0, fr_los_w: 40, fr_expose_w: 28, fr_strafe_w: 8, fr_aim_w: 0, ghost_fight: false, iso_press: 0, tgt_hpw: 90, tgt_low: 0, finish_fm: 0, tgt_need_los: false, finish_crowd: 0, finish_min_hp: 0.35, drops: true, grab_safe: false, slew_fire: false, self_lead: false, rear_guard: false, regen_hold: 0, final_hold: 0, ffa_late_alive: 0, ffa_late_override: null, ffa_early_t: 0, ffa_squad_need: 0, drop_heal: false, drop_heal_hp: 0.7, drop_heal_r: 220, late_base_t: 0, late_override: null,
 overwhelm: 3, overwhelm_hp: 0.9,
 fortress: false, fort_open: 5, fort_arms: 1, fort_after: 60,
 econ: false, econ_radius: 180, econ_hp: 0.5, econ_cubes: 10,
@@ -276,7 +276,7 @@ const drop = S.lastAlive - obs.alive
 if (drop > kills) {
 S.unexplained += drop - kills
 if (obs.t < (S.firstUnexplT ?? 1e9)) S.firstUnexplT = obs.t
-const proof = P.ffa_early_t ? (S.firstUnexplT < P.ffa_early_t || S.unexplained >= 3) : S.unexplained >= 2
+const proof = S.unexplained >= (S.squad && P.ffa_squad_need ? P.ffa_squad_need : 2)
 if (proof && !S.ffa) { S.ffa = true; S.squad = false; Object.assign(P, S.baseP, P.ffa_override || {}) }
 }
 if (!S.ffa && !S.squad && obs.t > P.squad_after && S.unexplained === 0) { S.squad = true; if (P.squad_override) Object.assign(P, P.squad_override) }
@@ -755,6 +755,19 @@ return [coverPoint(pos, tp, S.lastDamageBearing), "escape"]
 }
 for (const dr of (P.drops ? obs.drops || [] : [])) {
 const dd = dist2(dr.pos, pos)
+if (P.drop_heal) {
+const want = dd < P.drop_heal_r && (hpFrac < P.drop_heal_hp || dd < 90)
+const hot = enemies.some((m) => dist2(m.pos, dr.pos) < 35)
+if (want && !hot && dr.lands_in < dd / 11 + 3) {
+if (dd < dr.radius - 1.5) {
+if (!S.capJit || t > S.capJitT) { const a = rnd() * Math.PI * 2, r = uni(0, dr.radius * 0.5); S.capJit = [dr.pos[0] + Math.cos(a) * r, dr.pos[1] + Math.sin(a) * r]; S.capJitT = t + uni(0.4, 0.9) }
+S.capRing = dr
+return [S.capJit, "capture"]
+}
+return [[dr.pos[0], dr.pos[1]], "drop"]
+}
+continue
+}
 if (dd < 140 && dr.lands_in < dd / 11 + 2) {
 const contested = enemies.some((m) => dist2(m.pos, dr.pos) < 30)
 if (!contested || hpFrac > 0.8) {
@@ -1133,6 +1146,10 @@ const mlen = hyp(move[0], move[1])
 move = mlen > 0.2 ? norm2(move[0] + sx * P.jink, move[1] + sy * P.jink) : [sx, sy]
 }
 if (mode === "retreat" || mode === "zone_run" || mode === "escape") boost = me.energy > 15
+if (dodge && mode === "capture" && S.capRing) {
+const r = S.capRing, nx = pos[0] + dodge[0] * 4, ny = pos[1] + dodge[1] * 4
+if (hyp(nx - r.pos[0], ny - r.pos[1]) > r.radius - 1) dodge = [-dodge[0], -dodge[1]]
+}
 S.dodging = !!dodge
 if (dodge) { move = dodge; boost = boost || me.energy > (P.bdodge ? 8 : 20) }
 if (P.fight_boost && (mode === "rfight" || mode === "peek" || mode === "kite")) {
