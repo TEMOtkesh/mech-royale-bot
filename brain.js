@@ -56,7 +56,7 @@ export const DEFAULTS = {
   hostile_only: false, hostile_ang: 0.2, hostile_near: 60, hostile_mem: 4,
   short_retreat: 0, lethal: false, lethal_k: 0.8,
   opp: false, opp_late: 4, opp_range: 130, fight_boost: false, aim_risk: 0, near_risk: 0,
-  laser_run: 0, errand_clear: 40, blind_turn: 0, tgt_laser: 0,
+  laser_run: 0, errand_clear: 40, blind_turn: 0, tgt_laser: 0, las_peek: 0,
   ammo_track: false, pick_mem: false, pick_mem_empty: 160, pick_mem_swap: 90,
   fightmove: false, fr_gun: 88, fr_laser: 115, fr_light: 28, fr_range_w: 1.0, fr_los_w: 40, fr_expose_w: 28, fr_strafe_w: 8, fr_aim_w: 0, ghost_fight: false, iso_press: 0, tgt_hpw: 90, tgt_low: 0, finish_fm: 0, tgt_need_los: false, finish_crowd: 0, finish_min_hp: 0.35, drops: true, grab_safe: false, slew_fire: false, self_lead: false, rear_guard: false, regen_hold: 0, final_hold: 0, ffa_late_alive: 0, ffa_late_override: null, ffa_early_t: 0, ffa_squad_need: 0, drop_heal: false, drop_heal_hp: 0.7, drop_heal_r: 220, fr_flank_w: 0, preaim: 0, ttk_rule: false, ttk_ratio: 0.8, ttk_live: false, fr_light_avoid: 0, vlead: false, loot_threat_only: false, hostile_all: false, stray_safe: false, stray_w: 6, overwatch: false, late_base_t: 0, late_override: null,
   overwhelm: 3, overwhelm_hp: 0.9,
@@ -620,7 +620,10 @@ export function makeBot(hello, mapFiles, override = {}) {
     const gun = me.weapons[0]
     const reloading = gun && gun.kind === "gun" && ((gun.reload ?? 0) > 0 || gun.ammo === 0)
     const vuln = P.ammo_track && vulnerable(target, t)
-    const wantLos = vuln || !(reloading && !weaponReady(me) && hpFrac < 0.5)
+    // laser peek: charging needs no line of sight, so cool down and charge out of sight, step out as the charge completes
+    const plw = P.las_peek ? me.weapons.find((w) => w && w.kind === "laser") : null
+    const lasHide = !!plw && hpFrac < P.las_peek && ((plw.cooldown || 0) > 0.25 || (plw.charge || 0) < plw.stats.charge * 0.7)
+    const wantLos = vuln || (!lasHide && !(reloading && !weaponReady(me) && hpFrac < 0.5))
     const others = [...S.tracked.entries()].filter(([id, v]) => id !== target.id && v.src === "see" && t - v.t <= 3 && dist2(v.pos, pos) < 200).map(([, v]) => v)
     // an isolated attacker is the cheapest kill on the map: press it at closer range while we are healthy
     if (P.iso_press && !others.length && hpFrac > 0.6) pref *= P.iso_press
@@ -1456,6 +1459,17 @@ export function makeBot(hello, mapFiles, override = {}) {
     if (mode === "hide" && P.precharge) {
       // pre-charge the laser behind cover, then peek to release
       me.weapons.forEach((w, i) => { if (w && w.kind === "laser" && w.cooldown <= 0 && (w.charge || 0) < w.stats.charge * 0.95) act.fire[i] = true })
+    }
+    if (mode === "rfight" && P.las_peek && target && world) {
+      // out of sight of the target: keep the laser charging (and held) so it is full when we step out
+      const e = [pos[0], pos[1], pos[2] + (me.stats.muzzle_height || 7)], tc = [target.pos[0], target.pos[1], target.pos[2] + 4.5]
+      if (!world.los(e, tc)) {
+        me.weapons.forEach((w, i) => {
+          if (!w || w.kind !== "laser" || w.cooldown > 0) return
+          if (!(w.charge > 0)) S.lpStart = t
+          if (t - (S.lpStart ?? t) < 2.3) act.fire[i] = true
+        })
+      }
     }
     if (P.tac_reload && !fireTarget && !(act.fire && (act.fire[0] || act.fire[1]))) {
       const g = me.weapons[0]
