@@ -56,4 +56,5 @@ Changes, all limited to practice games against the house squad (free-for-all pla
 - `SquadDamageFirst`: against the squad, upgrades are taken damage first (drum magazine, lens, tungsten, capacitors, rotary feed) before plating and armor.
 - `SquadRetreatHP` 0.2 → 0: no low-health retreat from the squad.
 - `SquadNoRetreat` (on)
+- Practice upgrade order: sensors (+25 m vision) right after drum magazine and lens: vision, not range, limits the laser.
 - `SquadTiers`: house bots are weighed by their likely tier (easy → expert) from how many are already dead.: never break off a fight against the squad.
