@@ -57,7 +57,7 @@ export const DEFAULTS = {
   short_retreat: 0, lethal: false, lethal_k: 0.8,
   opp: false, opp_late: 4, opp_range: 130, fight_boost: false, aim_risk: 0, near_risk: 0,
   ammo_track: false, pick_mem: false, pick_mem_empty: 160, pick_mem_swap: 90,
-  fightmove: false, fr_gun: 88, fr_laser: 115, fr_light: 28, fr_range_w: 1.0, fr_los_w: 40, fr_expose_w: 28, fr_strafe_w: 8, fr_aim_w: 0, ghost_fight: false, iso_press: 0, tgt_hpw: 90, tgt_low: 0, finish_fm: 0, tgt_need_los: false, finish_crowd: 0, finish_min_hp: 0.35, drops: true, grab_safe: false, slew_fire: false, self_lead: false, rear_guard: false, regen_hold: 0, final_hold: 0, ffa_late_alive: 0, ffa_late_override: null, ffa_early_t: 0, ffa_squad_need: 0, drop_heal: false, drop_heal_hp: 0.7, drop_heal_r: 220, fr_flank_w: 0, preaim: 0, ttk_rule: false, ttk_ratio: 0.8, late_base_t: 0, late_override: null,
+  fightmove: false, fr_gun: 88, fr_laser: 115, fr_light: 28, fr_range_w: 1.0, fr_los_w: 40, fr_expose_w: 28, fr_strafe_w: 8, fr_aim_w: 0, ghost_fight: false, iso_press: 0, tgt_hpw: 90, tgt_low: 0, finish_fm: 0, tgt_need_los: false, finish_crowd: 0, finish_min_hp: 0.35, drops: true, grab_safe: false, slew_fire: false, self_lead: false, rear_guard: false, regen_hold: 0, final_hold: 0, ffa_late_alive: 0, ffa_late_override: null, ffa_early_t: 0, ffa_squad_need: 0, drop_heal: false, drop_heal_hp: 0.7, drop_heal_r: 220, fr_flank_w: 0, preaim: 0, ttk_rule: false, ttk_ratio: 0.8, ttk_live: false, late_base_t: 0, late_override: null,
   overwhelm: 3, overwhelm_hp: 0.9,
   fortress: false, fort_open: 5, fort_arms: 1, fort_after: 60,
   econ: false, econ_radius: 180, econ_hp: 0.5, econ_cubes: 10,
@@ -391,13 +391,30 @@ export function makeBot(hello, mapFiles, override = {}) {
     const d = dist2(target.pos, me.pos)
     const tFrac = (target.hp ?? 1400) / Math.max(1, target.max_hp ?? 1400)
     if (tFrac < 0.25) return false
-    const ours = (target.hp ?? 1400) / Math.max(1, myDps(me, d))
+    const t = S.T
+    // prior from measured hit rates, replaced by what is actually happening in this fight as evidence accumulates
+    let outRate = myDps(me, d)
+    if (P.ttk_live && S.hitLog) {
+      const hs = S.hitLog.filter((h) => h[1] === target.id && t - h[0] < 4)
+      const since = S.engageT && S.engageT[target.id] != null ? t - S.engageT[target.id] : 0
+      const w = clamp(since / 4, 0, 0.8)
+      if (since > 0.8) outRate = w * (hs.reduce((a, h) => a + h[2], 0) / Math.min(4, Math.max(1, since))) + (1 - w) * outRate
+    }
+    const ours = (target.hp ?? 1400) / Math.max(1, outRate)
     let inc = 0
+    const eye = [me.pos[0], me.pos[1], me.pos[2] + 5]
     for (const m of enemies) {
       const dm = dist2(m.pos, me.pos); if (dm > 230) continue
       const th = S.threats.get(m.id)
       const aimed = m.aim && Math.abs(angDiff(m.aim[0], Math.atan2(me.pos[1] - m.pos[1], me.pos[0] - m.pos[0]))) < 0.3
       if (m.id === target.id || aimed || (th && S.T - th[0] < 3)) inc += theirDps(m, dm)
+      else if (P.ttk_live && dm < 200 && (!world || world.los([m.pos[0], m.pos[1], m.pos[2] + 8], eye))) inc += 0.4 * theirDps(m, dm)  // has a line of fire on us
+    }
+    if (P.ttk_live && S.dmgLog) {
+      const ds = S.dmgLog.filter((x) => t - x[0] < 3)
+      const since = S.fightDmgT != null ? t - S.fightDmgT : 0
+      const w = clamp(since / 3, 0, 0.8)
+      if (since > 0.8) inc = w * (ds.reduce((a, x) => a + x[1], 0) / Math.min(3, Math.max(1, since))) + (1 - w) * inc
     }
     const theirs = me.hp / Math.max(1, inc)
     S.ttk = [ours, theirs]
@@ -1192,6 +1209,11 @@ export function makeBot(hello, mapFiles, override = {}) {
     const act = { tick: obs.tick }
     if (P.idle) { if (obs.offer) act.pick = 0; S.mode = "idle"; return act }
     updateMode(obs)
+    S.hitLog = (S.hitLog || []).filter((h) => t - h[0] < 8); S.dmgLog = (S.dmgLog || []).filter((x) => t - x[0] < 8); S.engageT = S.engageT || {}
+    for (const e of obs.events || []) {
+      if (e.type === "hit" && e.target < 16) { S.hitLog.push([t, e.target, e.amount]); if (S.engageT[e.target] == null || t - (S.lastHitT?.[e.target] ?? -99) > 6) S.engageT[e.target] = t; S.lastHitT = S.lastHitT || {}; S.lastHitT[e.target] = t }
+      if (e.type === "damaged" && e.by != null) { if (!S.dmgLog.length || t - S.dmgLog[S.dmgLog.length - 1][0] > 5) S.fightDmgT = t; S.dmgLog.push([t, e.amount, e.by]) }
+    }
     for (const e of obs.events || []) if (e.type === "damaged" && e.bearing != null) {
       S.lastDamagedT = t; S.lastDamageBearing = e.bearing
       if (e.by != null) S.threats.set(e.by, [t, e.bearing])
