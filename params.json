@@ -43,7 +43,7 @@
   "finish_hp": 0.5,
   "prey_fire_range": 260,
   "engage_range": 260,
-  "grab_cubes": 170,
+  "grab_cubes": 110,
   "fightmove": true,
   "hostile_only": true,
   "short_retreat": 0,
@@ -55,7 +55,11 @@
   "errand_clear": 30,
   "fr_light_avoid": 3,
   "aim_top": false,
-  "tac_reload": true
+  "tac_reload": true,
+  "econ": true,
+  "econ_radius": 180,
+  "econ_hp": 0.5,
+  "econ_cubes": 10
  },
  "ffa_override": {},
  "overwhelm": 99,
