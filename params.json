@@ -50,12 +50,19 @@
   "lethal": true,
   "loot_threat_only": true,
   "weapon_seek": 160,
-  "stray_safe": true
+  "stray_safe": true,
+  "weapon_pref": {
+   "laser": 2.5,
+   "lightning": 3.5,
+   "mortar": 0
+  }
  },
  "ffa_override": {},
  "overwhelm": 99,
  "bdodge": true,
  "loot_threat_only": true,
  "weapon_seek": 160,
- "laser_seek": 240
+ "laser_seek": 240,
+ "hostile_only": true,
+ "hostile_all": true
 }
