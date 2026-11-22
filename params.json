@@ -58,7 +58,14 @@
   "fr_gun": 150,
   "fr_laser": 170,
   "fr_range_w": 2.0,
-  "tgt_laser": 60
+  "fight_boost": true,
+  "tgt_laser": 60,
+  "fr_light_avoid": 3,
+  "weapon_pref": {
+   "laser": 3,
+   "mortar": 2.5,
+   "lightning": 2
+  }
  },
  "ffa_override": {},
  "overwhelm": 99,
@@ -70,5 +77,10 @@
  "hostile_all": true,
  "laser_run": 220,
  "errand_clear": 40,
- "tac_reload": true
+ "tac_reload": true,
+ "weapon_pref": {
+  "laser": 3,
+  "mortar": 2.5,
+  "lightning": 2
+ }
 }
