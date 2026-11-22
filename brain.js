@@ -57,7 +57,7 @@ export const DEFAULTS = {
   short_retreat: 0, lethal: false, lethal_k: 0.8,
   opp: false, opp_late: 4, opp_range: 130, fight_boost: false, aim_risk: 0, near_risk: 0,
   ammo_track: false, pick_mem: false, pick_mem_empty: 160, pick_mem_swap: 90,
-  fightmove: false, fr_gun: 88, fr_laser: 115, fr_light: 28, fr_range_w: 1.0, fr_los_w: 40, fr_expose_w: 28, fr_strafe_w: 8, fr_aim_w: 0, ghost_fight: false, iso_press: 0, tgt_hpw: 90, tgt_low: 0, finish_fm: 0, tgt_need_los: false, finish_crowd: 0, finish_min_hp: 0.35, late_base_t: 0, late_override: null,
+  fightmove: false, fr_gun: 88, fr_laser: 115, fr_light: 28, fr_range_w: 1.0, fr_los_w: 40, fr_expose_w: 28, fr_strafe_w: 8, fr_aim_w: 0, ghost_fight: false, iso_press: 0, tgt_hpw: 90, tgt_low: 0, finish_fm: 0, tgt_need_los: false, finish_crowd: 0, finish_min_hp: 0.35, drops: true, grab_safe: false, late_base_t: 0, late_override: null,
   overwhelm: 3, overwhelm_hp: 0.9,
   fortress: false, fort_open: 5, fort_arms: 1, fort_after: 60,
   econ: false, econ_radius: 180, econ_hp: 0.5, econ_cubes: 10,
@@ -784,7 +784,7 @@ export function makeBot(hello, mapFiles, override = {}) {
       const tp = n ? [cx / n, cy / n, pos[2]] : null
       return [coverPoint(pos, tp, S.lastDamageBearing), "escape"]
     }
-    for (const dr of obs.drops || []) {
+    for (const dr of (P.drops ? obs.drops || [] : [])) {
       const dd = dist2(dr.pos, pos)
       if (dd < 140 && dr.lands_in < dd / 11 + 2) {
         const contested = enemies.some((m) => dist2(m.pos, dr.pos) < 30)
@@ -799,7 +799,9 @@ export function makeBot(hello, mapFiles, override = {}) {
       // kill drops: grab nearby cubes even mid-fight (+4% hp/dmg each, more upgrades)
       let best = null, bd = P.grab_cubes
       for (const c of obs.cubes || []) { const d = dist2(c.pos, pos); if (d < bd && Math.abs(c.pos[2] - pos[2]) < 4) { bd = d; best = c } }
-      if (best) return [[best.pos[0], best.pos[1]], "grab"]
+      // don't walk a straight line to a cube while someone is lined up on us
+      const covered = P.grab_safe && enemies.some((m) => m.aim && dist2(m.pos, pos) < 180 && Math.abs(angDiff(m.aim[0], Math.atan2(pos[1] - m.pos[1], pos[0] - m.pos[0]))) < 0.2)
+      if (best && !covered) return [[best.pos[0], best.pos[1]], "grab"]
     }
     if (P.finish && !P.ghost) {
       // chase down a weakened enemy: fleeing mechs show their back (x1.5 damage)
